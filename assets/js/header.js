@@ -1,5 +1,4 @@
 // assets/js/header.js
-// assets/js/header.js
 document.addEventListener("DOMContentLoaded", () => {
   const header = document.getElementById("header");
   if (!header) return;
@@ -39,4 +38,26 @@ document.addEventListener("DOMContentLoaded", () => {
       </nav>
     </div>
   `;
+});
+// 認知機能ドロップダウンをクリックで開閉
+document.addEventListener("click", (e) => {
+  const dropdown = document.querySelector(".dropdown");
+  if (!dropdown) return;
+
+  if (dropdown.contains(e.target)) {
+    dropdown.classList.toggle("open");
+  } else {
+    dropdown.classList.remove("open");
+  }
+});
+
+// スクロール時のヘッダー変化
+window.addEventListener("scroll", () => {
+  const header = document.querySelector("#header");
+  if (!header) return;
+  if (window.scrollY > 60) {
+    header.classList.add("scrolled");
+  } else {
+    header.classList.remove("scrolled");
+  }
 });

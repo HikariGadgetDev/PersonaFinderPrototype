@@ -1,0 +1,86 @@
+/* =========================================
+   Persona Finder Footer (Refined)
+   footer.css
+========================================= */
+
+:root {
+  --footer-bg: rgba(15, 20, 32, 0.96);
+  --footer-border: rgba(255, 255, 255, 0.08);
+  --footer-text: #a7b6d4;
+  --footer-accent: #4dd3ff;
+  --font-ui: "Inter", "Noto Sans JP", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+/* ==========================
+   全体
+========================== */
+.landing-footer {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--footer-bg);
+  border-top: 1px solid var(--footer-border);
+  color: var(--footer-text);
+  padding: 60px 20px 40px;
+  text-align: center;
+  font-family: var(--font-ui);
+  position: relative;
+  overflow: hidden;
+}
+
+/* ブラウザ差異で出る下線ズレ対策 */
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+/* ==========================
+   内容
+========================== */
+.landing-container {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.footer-quote {
+  color: var(--footer-accent);
+  font-family: var(--font-mono);
+  font-style: italic;
+  font-size: 15px;
+  line-height: 1.8;
+  margin-bottom: 14px;
+  text-shadow: 0 0 6px rgba(77, 211, 255, 0.3);
+}
+
+.footer-text {
+  font-size: 13px;
+  line-height: 1.6;
+  opacity: 0.8;
+  margin: 4px 0;
+}
+
+/* ==========================
+   デコレーション（控えめな発光ライン）
+========================== */
+.landing-footer::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -50%;
+  width: 200%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--footer-accent), transparent);
+  animation: lineFlow 8s linear infinite;
+  opacity: 0.3;
+}
+
+@keyframes lineFlow {
+  0% { left: -50%; opacity: 0.2; }
+  50% { left: 0%; opacity: 0.6; }
+  100% { left: 50%; opacity: 0.2; }
+}
+
+/* ==========================
+   ノイズレイヤー（軽め）
+========
