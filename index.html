@@ -1,264 +1,714 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Persona Finder - テスト版</title>
-  <style>
-    /* ヘッダーCSS（header.cssの内容をそのまま貼り付け） */
-    :root {
-      --header-bg: rgba(20, 28, 42, 0.85);
-      --header-border: rgba(255, 255, 255, 0.08);
-      --header-text-main: #e4f1ff;
-      --accent-gradient: linear-gradient(135deg, #3b82f6, #8b5cf6);
-    }
-    
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    
-    body {
-      font-family: Inter, sans-serif;
-      background: linear-gradient(180deg, #ffffff, #f8fafc);
-      color: #0f172a;
-      padding-top: 72px;
-      min-height: 100vh;
-    }
-    
-    /* ヘッダー */
-    .header {
-      position: fixed;
-      top: 0;
-      width: 100%;
-      z-index: 1000;
-      background: var(--header-bg);
-      border-bottom: 1px solid var(--header-border);
-      backdrop-filter: blur(8px);
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-    }
-    
-    .header__container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 16px 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    
-    .header__logo {
-      display: flex;
-      align-items: center;
-      text-decoration: none;
-      color: var(--header-text-main);
-    }
-    
-    .header__logo-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 4px;
-      background: var(--accent-gradient);
-      color: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 800;
-      margin-right: 10px;
-    }
-    
-    .header__logo-text {
-      font-size: 18px;
-      font-weight: 800;
-      background: var(--accent-gradient);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    
-    .header__nav {
-      display: flex;
-      gap: 24px;
-    }
-    
-    .header__nav-link {
-      text-decoration: none;
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--header-text-main);
-      opacity: 0.8;
-      transition: opacity 0.3s;
-    }
-    
-    .header__nav-link:hover {
-      opacity: 1;
-    }
-    
-    /* メインコンテンツ */
-    .hero {
-      text-align: center;
-      padding: 96px 24px 64px;
-    }
-    
-    .hero__title {
-      font-size: clamp(32px, 8vw, 56px);
-      font-weight: 800;
-      line-height: 1.2;
-      margin-bottom: 24px;
-    }
-    
-    .hero__badge {
-      display: inline-block;
-      padding: 8px 16px;
-      background: rgba(59, 130, 246, 0.1);
-      border: 1px solid rgba(59, 130, 246, 0.2);
-      border-radius: 9999px;
-      font-size: 13px;
-      font-weight: 600;
-      color: #3b82f6;
-      margin-bottom: 24px;
-    }
-    
-    .cta {
-      display: inline-flex;
-      align-items: center;
-      gap: 12px;
-      padding: 16px 32px;
-      font-size: 18px;
-      font-weight: 700;
-      text-decoration: none;
-      color: #ffffff;
-      background: var(--accent-gradient);
-      border-radius: 12px;
-      box-shadow: 0 4px 16px rgba(59, 130, 246, 0.25);
-      transition: transform 0.3s;
-    }
-    
-    .cta:hover {
-      transform: translateY(-2px);
-    }
-    
-    .status-box {
-      max-width: 600px;
-      margin: 48px auto;
-      padding: 32px;
-      background: white;
-      border: 1px solid rgba(0, 0, 0, 0.08);
-      border-radius: 16px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-    }
-    
-    .status-box h2 {
-      font-size: 24px;
-      color: #22c55e;
-      margin-bottom: 16px;
-    }
-    
-    .status-box p {
-      color: #475569;
-      line-height: 1.6;
-      margin-bottom: 12px;
-    }
-    
-    .status-box code {
-      background: #f1f5f9;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-family: monospace;
-      font-size: 14px;
-      color: #3b82f6;
-    }
-    
-    /* フッター */
-    .footer {
-      background: rgba(15, 20, 32, 0.96);
-      color: #a7b6d4;
-      padding: 80px 24px 40px;
-      margin-top: 96px;
-    }
-    
-    .footer__container {
-      max-width: 1200px;
-      margin: 0 auto;
-      text-align: center;
-    }
-    
-    .footer__copyright {
-      font-size: 13px;
-    }
-  </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Persona Finder - 認知機能診断</title>
+  <meta name="description" content="ユングの認知機能理論を厳密に実装した、完全に透明で検証可能なMBTI診断ツール。計算過程を公開し、科学的限界を正直に示します。">
+
+  <!-- OGP Tags -->
+  <meta property="og:title" content="Persona Finder - 透明性を重視した認知機能診断">
+  <meta property="og:description" content="ユングの認知機能理論を厳密に実装。すべての計算過程を公開し、科学的限界を正直に示します。">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://yoursite.com/">
+  <meta property="og:image" content="https://yoursite.com/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Persona Finder - 認知機能診断">
+  <meta name="twitter:description" content="透明性と誠実さを重視したMBTI診断ツール">
+  <meta name="twitter:image" content="https://yoursite.com/og-image.png">
+
+  <!-- SEO -->
+  <meta name="keywords" content="MBTI,認知機能,性格診断,ユング心理学,透明性,オープンソース">
+  <link rel="canonical" href="https://yoursite.com/">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Stylesheets - 相対パス -->
+  <!-- <link rel="stylesheet" href="assets/css/header.css"> -->
+  <link rel="stylesheet" href="assets/css/index.css">
+  <link rel="stylesheet" href="assets/css/footer.css">
 </head>
 <body>
-  <!-- ヘッダー -->
-  <div class="header">
-    <div class="header__container">
-      <a href="index.html" class="header__logo">
-        <div class="header__logo-icon">Ψ</div>
-        <span class="header__logo-text">Persona Finder</span>
-      </a>
-      <nav class="header__nav">
-        <a href="#" class="header__nav-link">Home</a>
-        <a href="#" class="header__nav-link">診断</a>
-      </nav>
-    </div>
-  </div>
+  <div class="header"></div>
 
   <!-- メインコンテンツ -->
-  <section class="hero">
-    <h1 class="hero__title">
-      透明な理論の中で、<br>
-      あなた自身を見出す。
-    </h1>
-    <span class="hero__badge">— A study on self-understanding beyond mysticism —</span>
-    
-    <div class="status-box">
-      <h2>✅ Netlify デプロイ成功！</h2>
-      <p>このページが表示されている場合、基本的なHTML/CSSは正常に動作しています。</p>
-      <p><strong>次のステップ：</strong></p>
-      <ul style="text-align: left; margin-left: 20px; line-height: 1.8;">
-        <li>外部CSSファイル <code>assets/css/*.css</code> の読み込みを確認</li>
-        <li>JavaScriptファイル <code>assets/js/*.js</code> の読み込みを確認</li>
-        <li>ファイルパスがNetlifyのディレクトリ構造と一致しているか確認</li>
-      </ul>
-    </div>
-    
-    <a class="cta" href="#">
-      <span>診断を始める</span>
-      <span>→</span>
-    </a>
-  </section>
+  <main class="main">
+
+    <!-- ヒーローセクション -->
+    <section class="hero hero--visible">
+      <div class="container">
+        <h1 class="hero__title">
+          透明な理論の中で、<br>
+          あなた自身を見出す。
+        </h1>
+        <span class="hero__badge">— A study on self-understanding beyond mysticism —</span>
+        
+        <div class="hero__stats">
+          <div class="hero__stat">
+            <div class="hero__stat-value">64</div>
+            <div class="hero__stat-label">Questions</div>
+          </div>
+          <div class="hero__stat">
+            <div class="hero__stat-value">8</div>
+            <div class="hero__stat-label">Functions</div>
+          </div>
+          <div class="hero__stat">
+            <div class="hero__stat-value">16</div>
+            <div class="hero__stat-label">Types</div>
+          </div>
+        </div>
+        
+        <a class="cta cta--primary" href="/finder">
+          <span class="cta__text">診断を始める</span>
+          <span class="cta__icon" aria-hidden="true">→</span>
+        </a>
+      </div>
+    </section>
+
+    <!-- 特徴セクション -->
+    <section class="features">
+      <div class="container">
+        <h2 class="section__title">3つの約束</h2>
+        <p class="section__subtitle">このツールが他のMBTI診断と異なる理由</p>
+        
+        <div class="features__grid">
+          <div class="features__card">
+            <h3 class="features__card-title">理論に忠実な実装</h3>
+            <p class="features__card-desc">
+              ユングの8認知機能モデルを心理測定学の手法で形式化し、
+              主機能・補助機能・第三機能・劣等機能という階層を重み付けに反映。
+              性格タイプは固定的な分類ではなく、認知エネルギーの分布として動的に表現されます。
+            </p>
+          </div>
+          
+          <div class="features__card">
+            <h3 class="features__card-title">限りなく透明に近い設計</h3>
+            <p class="features__card-desc">
+              計算ロジックをすべて公開し、結果の導出過程を誰でも検証可能にしています。  
+              本ツールは、心理学的モデルの透明性を技術で実現する試みです。  
+              透明とは、すべてを見透かすことではなく、理解の過程を開いたままにすることです。
+            </p>
+          </div>
+          
+          <div class="features__card">
+            <h3 class="features__card-title">誠実な限界の開示</h3>
+            <p class="features__card-desc">
+              MBTI は職業適性や人間関係の成功を予測しません。
+              それでも、自己理解の補助的フレームワークとしての価値はあります。
+              このツールは、人を枠にはめるためではなく、
+              自分の思考や感情の"傾向"を静かに観察するための測定機です。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 認知機能セクション -->
+    <section class="cognitive">
+      <div class="container">
+        <h2 class="section__title">8つの認知機能</h2>
+        <p class="section__subtitle">ユングが提唱した、人間の情報処理と判断を司る基本要素</p>
+        
+        <div class="cognitive__grid">
+          <a class="cognitive__card" href="/function?code=ni">
+            <div class="cognitive__card-header">
+              <span class="cognitive__card-code">Ni</span>
+              <span class="cognitive__card-name">内向的直観</span>
+            </div>
+            <p class="cognitive__card-desc">洞察と未来予測。パターンを認識し、抽象的な本質を掴む機能。</p>
+          </a>
+          
+          <a class="cognitive__card" href="/function?code=ne">
+            <div class="cognitive__card-header">
+              <span class="cognitive__card-code">Ne</span>
+              <span class="cognitive__card-name">外向的直観</span>
+            </div>
+            <p class="cognitive__card-desc">可能性の探求。アイデアを発散させ、新しい関連性を発見する機能。</p>
+          </a>
+          
+          <a class="cognitive__card" href="/function?code=si">
+            <div class="cognitive__card-header">
+              <span class="cognitive__card-code">Si</span>
+              <span class="cognitive__card-name">内向的感覚</span>
+            </div>
+            <p class="cognitive__card-desc">経験と伝統。過去の記憶を参照し、詳細を正確に再現する機能。</p>
+          </a>
+          
+          <a class="cognitive__card" href="/function?code=se">
+            <div class="cognitive__card-header">
+              <span class="cognitive__card-code">Se</span>
+              <span class="cognitive__card-name">外向的感覚</span>
+            </div>
+            <p class="cognitive__card-desc">現在の体験。今この瞬間の五感情報を敏感に捉え、即座に反応する機能。</p>
+          </a>
+          
+          <a class="cognitive__card" href="/function?code=ti">
+            <div class="cognitive__card-header">
+              <span class="cognitive__card-code">Ti</span>
+              <span class="cognitive__card-name">内向的思考</span>
+            </div>
+            <p class="cognitive__card-desc">論理的分析。内的な論理体系を構築し、矛盾を検出する機能。</p>
+          </a>
+          
+          <a class="cognitive__card" href="/function?code=te">
+            <div class="cognitive__card-header">
+              <span class="cognitive__card-code">Te</span>
+              <span class="cognitive__card-name">外向的思考</span>
+            </div>
+            <p class="cognitive__card-desc">効率的実行。客観的基準とシステムで、目標を達成する機能。</p>
+          </a>
+          
+          <a class="cognitive__card" href="/function?code=fi">
+            <div class="cognitive__card-header">
+              <span class="cognitive__card-code">Fi</span>
+              <span class="cognitive__card-name">内向的感情</span>
+            </div>
+            <p class="cognitive__card-desc">個人的価値。内的な価値観と真正性を重視し、道徳的判断を行う機能。</p>
+          </a>
+          
+          <a class="cognitive__card" href="/function?code=fe">
+            <div class="cognitive__card-header">
+              <span class="cognitive__card-code">Fe</span>
+              <span class="cognitive__card-name">外向的感情</span>
+            </div>
+            <p class="cognitive__card-desc">調和と共感。場の雰囲気を察知し、集団の調和を維持する機能。</p>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- 16タイプセクション -->
+    <section class="types">
+      <div class="container">
+        <h2 class="section__title">16の性格タイプ</h2>
+        <p class="section__subtitle">8つの機能が描く心の地図、16のタイプが紡ぐ心理構造</p>
+
+        <!-- NT: 直観 × 思考 -->
+        <div class="types__group">
+          <h3 class="types__group-title">直観 × 思考タイプ(NT)</h3>
+          <div class="types__grid">
+            
+            <div class="types__card">
+              <div class="types__card-header">
+                <span class="types__card-code">INTJ</span>
+                <span class="types__card-frequency">2.1%</span>
+              </div>
+              <div class="types__card-body">
+                <h4 class="types__card-catch">構想する統率者</h4>
+                <p class="types__card-tagline">構想を描き、実現する設計図を引く</p>
+                <ul class="types__card-stack">
+                  <li><strong>主機能:</strong>Ni(内向的直観)</li>
+                  <li><strong>補助機能:</strong>Te(外向的思考)</li>
+                  <li><strong>第三機能:</strong>Fi(内向的感情)</li>
+                  <li><strong>劣等機能:</strong>Se(外向的感覚)</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="types__card">
+              <div class="types__card-header">
+                <span class="types__card-code">INTP</span>
+                <span class="types__card-frequency">3.3%</span>
+              </div>
+              <div class="types__card-body">
+                <h4 class="types__card-catch">理の探求者</h4>
+                <p class="types__card-tagline">概念を分解し、その原理から再構築する</p>
+                <ul class="types__card-stack">
+                  <li><strong>主機能:</strong>Ti(内向的思考)</li>
+                  <li><strong>補助機能:</strong>Ne(外向的直観)</li>
+                  <li><strong>第三機能:</strong>Si(内向的感覚)</li>
+                  <li><strong>劣等機能:</strong>Fe(外向的感情)</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="types__card">
+              <div class="types__card-header">
+                <span class="types__card-code">ENTJ</span>
+                <span class="types__card-frequency">1.8%</span>
+              </div>
+              <div class="types__card-body">
+                <h4 class="types__card-catch">指揮する改革者</h4>
+                <p class="types__card-tagline">目標を定め、組織を導いて実現する</p>
+                <ul class="types__card-stack">
+                  <li><strong>主機能:</strong>Te(外向的思考)</li>
+                  <li><strong>補助機能:</strong>Ni(内向的直観)</li>
+                  <li><strong>第三機能:</strong>Se(外向的感覚)</li>
+                  <li><strong>劣等機能:</strong>Fi(内向的感情)</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="types__card">
+              <div class="types__card-header">
+                <span class="types__card-code">ENTP</span>
+                <span class="types__card-frequency">3.2%</span>
+              </div>
+              <div class="types__card-body">
+                <h4 class="types__card-catch">発想の開拓者</h4>
+                <p class="types__card-tagline">常識を越え、発想で新しい景色を描く</p>
+                <ul class="types__card-stack">
+                  <li><strong>主機能:</strong>Ne(外向的直観)</li>
+                  <li><strong>補助機能:</strong>Ti(内向的思考)</li>
+                  <li><strong>第三機能:</strong>Fe(外向的感情)</li>
+                  <li><strong>劣等機能:</strong>Si(内向的感覚)</li>
+                </ul>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- NF: 直観 × 感情 -->
+        <div class="types__group">
+          <h3 class="types__group-title">直観 × 感情タイプ(NF)</h3>
+          <div class="types__grid">
+            
+            <div class="types__card">
+              <div class="types__card-header">
+                <span class="types__card-code">INFJ</span>
+                <span class="types__card-frequency">1.5%</span>
+              </div>
+              <div class="types__card-body">
+                <h4 class="types__card-catch">心を照らす語り手</h4>
+                <p class="types__card-tagline">他者の想いに耳を傾け、静かに希望を灯す</p>
+                <ul class="types__card-stack">
+                  <li><strong>主機能:</strong>Ni(内向的直観)</li>
+                  <li><strong>補助機能:</strong>Fe(外向的感情)</li>
+                  <li><strong>第三機能:</strong>Ti(内向的思考)</li>
+                  <li><strong>劣等機能:</strong>Se(外向的感覚)</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="types__card">
+              <div class="types__card-header">
+                <span class="types__card-code">INFP</span>
+                <span class="types__card-frequency">4.4%</span>
+              </div>
+              <div class="types__card-body">
+                <h4 class="types__card-catch">理想を紡ぐ詩人</h4>
+                <p class="types__card-tagline">内的価値を信じ、理想を現実に織り込む</p>
+                <ul class="types__card-stack">
+                  <li><strong>主機能:</strong>Fi(内向的感情)</li>
+                  <li><strong>補助機能:</strong>Ne(外向的直観)</li>
+                  <li><strong>第三機能:</strong>Si(内向的感覚)</li>
+                  <li><strong>劣等機能:</strong>Te(外向的思考)</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="types__card">
+              <div class="types__card-header">
+                <span class="types__card-code">ENFJ</span>
+                <span class="types__card-frequency">2.5%</span>
+              </div>
+              <div class="types__card-body">
+                <h4 class="types__card-catch">共感の統率者</h4>
+                <p class="types__card-tagline">共感で人を照らし、共に未来を描く</p>
+                <ul class="types__card-stack">
+                  <li><strong>主機能:</strong>Fe(外向的感情)</li>
+                  <li><strong>補助機能:</strong>Ni(内向的直観)</li>
+                  <li><strong>第三機能:</strong>Se(外向的感覚)</li>
+                  <li><strong>劣等機能:</strong>Ti(内向的思考)</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="types__card">
+              <div class="types__card-header">
+                <span class="types__card-code">ENFP</span>
+                <span class="types__card-frequency">8.1%</span>
+              </div>
+              <div class="types__card-body">
+                <h4 class="types__card-catch">熱狂する発見者</h4>
+                <p class="types__card-tagline">感情で世界を照らし、新しい景色を描く</p>
+                <ul class="types__card-stack">
+                  <li><strong>主機能:</strong>Ne(外向的直観)</li>
+                  <li><strong>補助機能:</strong>Fi(内向的感情)</li>
+                  <li><strong>第三機能:</strong>Te(外向的思考)</li>
+                  <li><strong>劣等機能:</strong>Si(内向的感覚)</li>
+                </ul>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ST: 感覚 × 思考 -->
+        <div class="types__group">
+          <h3 class="types__group-title">感覚 × 思考タイプ(ST)</h3>
+          <div class="types__grid">
+            
+            <div class="types__card">
+              <div class="types__card-header">
+                <span class="types__card-code">ISTJ</span>
+                <span class="types__card-frequency">11.6%</span>
+              </div>
+              <div class="types__card-body">
+                <h4 class="types__card-catch">秩序を築く実務者</h4>
+                <p class="types__card-tagline">事実と手順を守り、秩序を保つ</p>
+                <ul class="types__card-stack">
+                  <li><strong>主機能:</strong>Si(内向的感覚)</li>
+                  <li><strong>補助機能:</strong>Te(外向的思考)</li>
+                  <li><strong>第三機能:</strong>Fi(内向的感情)</li>
+                  <li><strong>劣等機能:</strong>Ne(外向的直観)</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="types__card">
+              <div class="types__card-header">
+                <span class="types__card-code">ESTJ</span>
+                <span class="types__card-frequency">8.7%</span>
+              </div>
+              <div class="types__card-body">
+                <h4 class="types__card-catch">秩序の実行者</h4>
+                <p class="types__card-tagline">規律を重んじ、物事を確実に進める</p>
+                <ul class="types__card-stack">
+                  <li><strong>主機能:</strong>Te(外向的思考)</li>
+                  <li><strong>補助機能:</strong>Si(内向的感覚)</li>
+                  <li><strong>第三機能:</strong>Ne(外向的直観)</li>
+                  <li><strong>劣等機能:</strong>Fi(内向的感情)</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="types__card">
+              <div class="types__card-header">
+                <span class="types__card-code">ISTP</span>
+                <span class="types__card-frequency">5.4%</span>
+              </div>
+              <div class="types__card-body">
+                <h4 class="types__card-catch">瞬間に挑む実験者</h4>
+                <p class="types__card-tagline">状況を瞬時に読み、最適な行動で応える</p>
+                <ul class="types__card-stack">
+                  <li><strong>主機能:</strong>Ti(内向的思考)</li>
+                  <li><strong>補助機能:</strong>Se(外向的感覚)</li>
+                  <li><strong>第三機能:</strong>Ni(内向的直観)</li>
+                  <li><strong>劣等機能:</strong>Fe(外向的感情)</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="types__card">
+              <div class="types__card-header">
+                <span class="types__card-code">ESTP</span>
+                <span class="types__card-frequency">4.3%</span>
+              </div>
+              <div class="types__card-body">
+                <h4 class="types__card-catch">直感で動く実践者</h4>
+                <p class="types__card-tagline">状況を掴み取り、瞬時に行動へ移す</p>
+                <ul class="types__card-stack">
+                  <li><strong>主機能:</strong>Se(外向的感覚)</li>
+                  <li><strong>補助機能:</strong>Ti(内向的思考)</li>
+                  <li><strong>第三機能:</strong>Fe(外向的感情)</li>
+                  <li><strong>劣等機能:</strong>Ni(内向的直観)</li>
+                </ul>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- SF: 感覚 × 感情 -->
+        <div class="types__group">
+          <h3 class="types__group-title">感覚 × 感情タイプ(SF)</h3>
+          <div class="types__grid">
+            
+            <div class="types__card">
+              <div class="types__card-header">
+                <span class="types__card-code">ISFJ</span>
+                <span class="types__card-frequency">13.8%</span>
+              </div>
+              <div class="types__card-body">
+                <h4 class="types__card-catch">優しさを紡ぐ守り手</h4>
+                <p class="types__card-tagline">小さな変化に気づき、ずっと支え続ける</p>
+                <ul class="types__card-stack">
+                  <li><strong>主機能:</strong>Si(内向的感覚)</li>
+                  <li><strong>補助機能:</strong>Fe(外向的感情)</li>
+                  <li><strong>第三機能:</strong>Ti(内向的思考)</li>
+                  <li><strong>劣等機能:</strong>Ne(外向的直観)</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="types__card">
+              <div class="types__card-header">
+                <span class="types__card-code">ESFJ</span>
+                <span class="types__card-frequency">12.3%</span>
+              </div>
+              <div class="types__card-body">
+                <h4 class="types__card-catch">思いやりの調整者</h4>
+                <p class="types__card-tagline">周囲を思いやり、安心できる場を整える</p>
+                <ul class="types__card-stack">
+                  <li><strong>主機能:</strong>Fe(外向的感情)</li>
+                  <li><strong>補助機能:</strong>Si(内向的感覚)</li>
+                  <li><strong>第三機能:</strong>Ne(外向的直観)</li>
+                  <li><strong>劣等機能:</strong>Ti(内向的思考)</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="types__card">
+              <div class="types__card-header">
+                <span class="types__card-code">ISFP</span>
+                <span class="types__card-frequency">8.8%</span>
+              </div>
+              <div class="types__card-body">
+                <h4 class="types__card-catch">感覚の美術家</h4>
+                <p class="types__card-tagline">感性のままに感じ、静かに美を表す</p>
+                <ul class="types__card-stack">
+                  <li><strong>主機能:</strong>Fi(内向的感情)</li>
+                  <li><strong>補助機能:</strong>Se(外向的感覚)</li>
+                  <li><strong>第三機能:</strong>Ni(内向的直観)</li>
+                  <li><strong>劣等機能:</strong>Te(外向的思考)</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="types__card">
+              <div class="types__card-header">
+                <span class="types__card-code">ESFP</span>
+                <span class="types__card-frequency">8.5%</span>
+              </div>
+              <div class="types__card-body">
+                <h4 class="types__card-catch">場を明るくする表現者</h4>
+                <p class="types__card-tagline">感情のままに動き、場に活力を伝える</p>
+                <ul class="types__card-stack">
+                  <li><strong>主機能:</strong>Se(外向的感覚)</li>
+                  <li><strong>補助機能:</strong>Fi(内向的感情)</li>
+                  <li><strong>第三機能:</strong>Te(外向的思考)</li>
+                  <li><strong>劣等機能:</strong>Ni(内向的直観)</li>
+                </ul>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 透明性セクション -->
+    <section class="transparency">
+      <div class="container container--narrow">
+        <h2 class="section__title">透明性の宣言</h2>
+        
+        <dl class="transparency__list">
+          <dt class="transparency__list-term">このツールが約束すること</dt>
+          <dd class="transparency__list-desc">
+            ユングの認知機能理論を、心理測定学の手法で厳密に形式化しました。主機能から劣等機能までの階層構造を数理的に表現し、<strong>すべての計算式を公開</strong>しています。<br><br>
+            「なぜINTJと判定されたのか?」「Niのスコアはどう算出されたのか?」—— あなたが疑問に思うすべてのプロセスは、<strong>ソースコードとして検証可能</strong>です。ブラックボックスは存在しません。<br><br>
+            これは <strong>transparency(透明性)</strong>の実践です。理論を盲信するのではなく、批判的に検証できる形で提示すること。それが<strong>科学的誠実さの第一歩</strong>だと考えています。
+          </dd>
+
+          <dt class="transparency__list-term">このツールが約束しないこと</dt>
+          <dd class="transparency__list-desc">
+            MBTI は統計的予測妥当性において、<strong>Big Five</strong> などの確立された性格モデルに及びません。職業適性、学業成績、人間関係の成功を予測する証拠は<strong>限定的</strong>です。<br><br>
+            ユングの8認知機能モデルは理論的に魅力的ですが、実証研究は発展途上です。このツールは、「科学的に証明された性格診断」ではなく、<strong>「透明に実装された思考実験」</strong>として提供されます。<br><br>
+            診断結果は、あなた自身の内省を補助するフレームワークです。<strong>他者を分類するラベルではなく、自己理解の対話の出発点</strong>として使ってください。
+          </dd>
+        </dl>
+
+        <h3 class="transparency__heading">理論の限界</h3>
+        <div class="transparency__block">
+          <ul class="transparency__block-list">
+            <li>ユングの8認知機能モデルは実証研究が発展途上です</li>
+            <li>MBTI による16分類は<strong>職業適性や学業成績の予測には使えません</strong></li>
+            <li>学術的には <strong>Big Five が予測妥当性で優れています</strong></li>
+          </ul>
+        </div>
+
+        <h3 class="transparency__heading">それでも、なぜこれを作ったのか</h3>
+        <div class="transparency__block">
+          <p>多くのMBTI診断ツールは、結果が出るまでの仕組みが見えません。どんな計算で導かれたのか、どんな理屈で判断されたのかがわからないまま、「あなたはこういう人です」と示されてしまうことが多い。</p>
+          <p>ユングの理論を扱うなら、できる限り正直で、誰が見ても理解できる形にしたい。その思いから、このプロジェクトは始まりました。</p>
+          <p>そしてもうひとつ、より個人的な理由があります。人は誰しも、自分の中でどうにも扱いにくい部分を持っています。ユングが言うところの<strong>「劣等機能」</strong>です。</p>
+          <p>それは<strong>欠点ではなく、まだ育ちきっていない感覚や考え方の芽</strong>のようなもの。苦手を否定するのではなく、そこにどんな意味があるのかを少しだけ見つめ直す。そんな時間をつくれたらと思っています。</p>
+          <p><strong>この診断は、タイプを固定するためのものではありません。</strong>自分の中のバランスを見つけ直すための、ひとつの鏡です。うまくいかない自分も、少しずつ受け入れられるようになるきっかけになれば嬉しいです。</p>
+        </div>
+
+        <div class="transparency__quote">
+          <p class="transparency__quote-text">"Verum ipsum factum"<br>(真理とは、作られたものである)</p>
+          <p class="transparency__quote-author">— Giambattista Vico</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 挑発的な問い -->
+    <section class="controversy">
+      <div class="container container--narrow">
+        <h2 class="section__title">MBTIに意味はあるのか?</h2>
+        
+        <div class="controversy__content">
+          <p>科学的妥当性は低い。統計的な予測力もない。追試研究も不十分。<br>それなのに、多くの人が、「自分を理解できた」と感じる。</p>
+          <p>この矛盾をどう考えるべきか。</p>
+          <p>ひとつの答えは、<strong>「妥当性」と「有用性」は別物</strong>だということです。星座占いが天文学的に無意味でも、「今日のラッキーカラーは赤」という言葉が誰かの背中を押すことがある。MBTIもまた、<strong>科学ではなく言語</strong>なのかもしれません。</p>
+          <p>「私はINTJだから論理的」ではなく、<strong>「論理的に考える傾向を、Tiという言葉で表現できる」</strong>。そのフレームワークが自己理解を助けるなら、それは道具として機能している。</p>
+          <p>ただし、道具は使い方を誤れば凶器になります。<strong>タイプで他人を決めつけない。自分を固定しない。常に疑い続ける。</strong>その態度があれば、MBTIは有害ではなく、ひとつの鏡として機能するはずです。</p>
+          <p class="controversy__final">
+            科学的正しさと、個人的な意味。<br>
+            あなたはどちらを求めますか?<br>
+            <strong>両方を理解した上で、選んでください。</strong>
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- プロセス -->
+    <section class="process">
+      <div class="container">
+        <h2 class="section__title">診断の流れ</h2>
+        <p class="section__subtitle">約5分で完了するシンプルなプロセス</p>
+        
+        <div class="process__steps">
+          <div class="process__step">
+            <div class="process__step-number">1</div>
+            <h3 class="process__step-title">64問に回答</h3>
+            <p class="process__step-desc">各認知機能を8問ずつ測定。5段階評価で直感的に回答できます。</p>
+          </div>
+          
+          <div class="process__step">
+            <div class="process__step-number">2</div>
+            <h3 class="process__step-title">スコア計算</h3>
+            <p class="process__step-desc">非線形重み付けと逆転項目を用いた心理測定学的スコアリング。</p>
+          </div>
+          
+          <div class="process__step">
+            <div class="process__step-number">3</div>
+            <h3 class="process__step-title">タイプ判定</h3>
+            <p class="process__step-desc">ユングの機能スタック理論に基づき、16タイプから最適合を判定。</p>
+          </div>
+          
+          <div class="process__step">
+            <div class="process__step-number">4</div>
+            <h3 class="process__step-title">詳細分析</h3>
+            <p class="process__step-desc">機能スタック、確信度、各機能のスコア内訳を視覚的に表示。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="faq">
+      <div class="container">
+        <h2 class="section__title">よくある質問</h2>
+        <p class="section__subtitle">正直にお答えします</p>
+        
+        <div class="faq__list">
+          <div class="faq__item">
+            <h3 class="faq__item-question">この診断は科学的に正しいですか?</h3>
+            <p class="faq__item-answer">
+              <strong>いいえ、「科学的に正しい」とは言えません。</strong>MBTI は再現性や予測妥当性の面で、学術的な性格心理学の基準を満たしていません。Big Five(五因子モデル)のような統計的に検証された指標と比べると、職業適性や人間関係の予測力は<strong>著しく低い</strong>です。<br><br>
+              それでも多くの人がMBTIに惹かれるのは、<strong>「自分を理解したい」という欲求に応えるフレームワーク</strong>として機能するからです。科学的妥当性と、個人的な意味づけの有用性は、必ずしも一致しません。<br><br>
+              このツールは後者—つまり<strong>自己理解の補助的な言語</strong>として提供しています。占いと学術研究の中間にある、「思考の整理道具」だと考えてください。
+            </p>
+          </div>
+
+          <div class="faq__item">
+            <h3 class="faq__item-question">他のMBTI診断と何が違うのですか?</h3>
+            <p class="faq__item-answer">
+              最大の違いは<strong>「透明性」と「誠実さ」</strong>です。多くのMBTI診断は、どのように判定しているのか、なぜその結果になったのかを一切説明しません。まるで占い師のように、「あなたはINTJです」と告げるだけ。<br><br>
+              このツールでは、<strong>すべての計算式、重み付けロジック、判定アルゴリズムをソースコードとして公開</strong>しています。非線形スコアリング、逆転項目処理、機能スタック理論の実装—すべて検証可能です。<br><br>
+              さらに重要なのは、<strong>このツール自体の限界を隠さない</strong>こと。「科学的に証明されています」と嘘をつかず、「理論的には魅力的だが、実証研究は不十分」と正直に示します。批判可能な形で提示することが、誠実さだと考えています。
+            </p>
+          </div>
+
+          <div class="faq__item">
+            <h3 class="faq__item-question">診断結果をどう受け止めればいいですか?</h3>
+            <p class="faq__item-answer">
+              <strong>「絶対的な真実」としてではなく、「対話の出発点」として。</strong>診断結果は、あなた自身の内省を言語化する<strong>補助的なフレームワーク</strong>です。<br><br>
+              確信度が表示されるのは、判定の曖昧さを可視化するためです。「あなたは90%の確率でINTJ」ではなく、「このデータからはINTJと解釈できるが、他の解釈の余地もある」という意味です。<br><br>
+              特に注目してほしいのは<strong>劣等機能</strong>です。それは欠点ではなく、<strong>まだ育ちきっていない可能性</strong>。苦手なことを否定するのではなく、「なぜこれが難しいのか」を理解し、少しずつ向き合うきっかけにしてください。<br><br>
+              タイプは固定されたラベルではありません。人は変わります。今日のあなたと、5年後のあなたは違う結果になるかもしれない。それでいいのです。
+            </p>
+          </div>
+
+          <div class="faq__item">
+            <h3 class="faq__item-question">データは保存されますか?</h3>
+            <p class="faq__item-answer">
+              <strong>いいえ、一切保存されません。</strong>すべての計算はあなたのブラウザ内で完結し、サーバーにデータは送信されません。回答内容も、診断結果も、ページを閉じれば消えます。<br><br>
+              これは技術的な制約ではなく、<strong>意図的な設計思想</strong>です。性格診断は極めて個人的な情報であり、誰かに記録されるべきではありません。あなたの内面は、あなただけのものです。
+            </p>
+          </div>
+
+          <div class="faq__item">
+            <h3 class="faq__item-question">このツールの限界は何ですか?</h3>
+            <p class="faq__item-answer">
+              たくさんあります。正直に列挙します:<br><br>
+              <strong>1. 理論的限界:</strong>ユングの8認知機能モデルは追試研究が不十分で、学術的コンセンサスがありません。<br><br>
+              <strong>2. 測定の限界:</strong>64問という質問数では、複雑な人間の認知を完全に捉えることは不可能です。自己報告式の質問は、社会的望ましさバイアスの影響を受けます。<br><br>
+              <strong>3. 実装の限界:</strong>機能スタックの重み付けは理論に基づきますが、最適な係数は未検証です。より良いアルゴリズムがあるかもしれません。<br><br>
+              <strong>4. 解釈の限界:</strong>診断結果は統計的な傾向であり、個人の複雑さを16タイプに還元することはできません。<br><br>
+              <strong>5. 枠組の限界:</strong>人間の認知は連続的であり、E/I、S/N、T/F、J/Pという二項対立で完全に表現できるわけではありません。<br><br>
+              ユングは、人間の認知を思考・感情・直観・感覚の4機能と、それぞれの内向・外向という二重構造で説明しました。このツールはそれに対して、心理理論を実装することで、その形式的妥当性を検証しています。これは、人間の認知様式をアーキテクチャ的に理解しようとした試みであり、コードは理論の試金石に過ぎません。これらの限界を知った上で、それでも、「自分を見つめ直す道具」として価値を感じるなら、使ってください。批判的に、自覚的に。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 最終CTA -->
+    <section class="cta-section">
+      <div class="container">
+        <h2 class="cta-section__title">準備はできましたか?</h2>
+        <p class="cta-section__text">約5分で、あなたの認知機能プロファイルを分析します。すべての計算過程は透明で、検証可能です。</p>
+        <a class="cta cta--primary" href="/finder">
+          <span class="cta__text">今すぐ診断を始める</span>
+          <span class="cta__icon" aria-hidden="true">→</span>
+        </a>
+      </div>
+    </section>
+
+  </main>
 
   <!-- フッター -->
-  <div class="footer">
-    <div class="footer__container">
-      <p class="footer__copyright">© 2024 Persona Finder</p>
-    </div>
-  </div>
+  <div class="footer"></div>
 
+  <!-- Scripts -->
+  <!-- <script src="assets/js/header.js" defer></script> -->
+  <script src="assets/js/footer.js" defer></script>
+  
+  <!-- Intersection Observer -->
   <script>
-    // ヘッダーJSの機能（最小限）
-    console.log('✅ JavaScript is working!');
-    console.log('📁 Current URL:', window.location.href);
-    console.log('📂 Base URL:', window.location.origin);
-    
-    // ファイル読み込みチェック
-    const checkFiles = async () => {
-      const files = [
-        'assets/css/header.css',
-        'assets/css/footer.css',
-        'assets/css/index.css',
-        'assets/js/header.js',
-        'assets/js/footer.js'
-      ];
+    (function() {
+      const observerOptions = { 
+        threshold: 0.1, 
+        rootMargin: '0px 0px -50px 0px' 
+      };
       
-      console.log('🔍 Checking file availability:');
-      for (const file of files) {
-        try {
-          const response = await fetch(file);
-          console.log(response.ok ? `✅ ${file}` : `❌ ${file} (${response.status})`);
-        } catch (error) {
-          console.log(`❌ ${file} (Network Error)`);
-        }
-      }
-    };
-    
-    checkFiles();
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => { 
+          if (entry.isIntersecting) {
+            entry.target.classList.add('section--visible');
+          }
+        });
+      }, observerOptions);
+      
+      document.querySelectorAll('section').forEach(section => observer.observe(section));
+    })();
+
+    // Smooth scroll
+    (function() {
+      document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+          const href = this.getAttribute('href');
+          if (href !== '#') {
+            e.preventDefault();
+            const target = document.querySelector(href);
+            if (target) { 
+              target.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
+              }); 
+            }
+          }
+        });
+      });
+    })();
   </script>
 </body>
 </html>
