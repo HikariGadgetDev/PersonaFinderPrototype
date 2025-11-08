@@ -101,7 +101,7 @@ function escapeHtml(text) {
 }
 
 // ============================================
-// 質問のシャッフル処理（シード保存対応）
+// 質問のシャッフル処理(シード保存対応)
 // ============================================
 
 function seededRandom(seed) {
@@ -256,7 +256,7 @@ window.handleKeyboardNav = function(event, currentValue) {
     if (nextIndex !== currentIndex && options[nextIndex]) {
         options[nextIndex].focus();
         
-        // tabindexを更新（ローミングタブインデックス）
+        // tabindexを更新(ローミングタブインデックス)
         options.forEach((opt, idx) => {
             opt.tabIndex = idx === nextIndex ? 0 : -1;
         });
@@ -295,6 +295,10 @@ window.handleAnswer = function (value, event) {
     const isReverse = question.reverse || false;
     const oldAnswer = state.answers[question.id];
 
+    // スコアボードの開閉状態を保存
+    const scoresList = document.getElementById('scores-list');
+    const wasOpen = scoresList && scoresList.classList.contains('open');
+
     // 前回の回答スコアを差し引く
     if (oldAnswer !== undefined) {
         const oldAnswerData = state.answers[question.id];
@@ -323,7 +327,6 @@ window.handleAnswer = function (value, event) {
         const buttons = document.querySelectorAll('.option');
         buttons.forEach(btn => {
             btn.classList.remove('selected');
-            btn.disabled = true;
             btn.setAttribute('aria-checked', 'false');
         });
         event.currentTarget.classList.add('selected');
@@ -333,32 +336,75 @@ window.handleAnswer = function (value, event) {
     // 次の質問へ
     if (state.currentQuestion < questions.length - 1) {
         setTimeout(() => {
-            nextStep(() => state.currentQuestion++);
+            nextStep(() => state.currentQuestion++, wasOpen);
         }, ANIMATION_DELAY.BUTTON_FEEDBACK);
     } else {
         setTimeout(() => {
-            nextStep(() => state.showResult = true);
+            nextStep(() => state.showResult = true, wasOpen);
         }, ANIMATION_DELAY.BUTTON_FEEDBACK);
     }
 };
 
 window.goBack = function () {
     if (state.currentQuestion > 0 && !isProcessing) {
+        // スコアボードの開閉状態を保存
+        const scoresList = document.getElementById('scores-list');
+        const wasOpen = scoresList && scoresList.classList.contains('open');
+        
         state.currentQuestion--;
         saveStateToStorage(state);
         render();
+        
+        // スコアボードの状態を復元
+        if (wasOpen) {
+            restoreScoresListState(true);
+        }
+    }
+};
+
+window.goNext = function () {
+    if (state.currentQuestion < questions.length - 1 && !isProcessing) {
+        // 現在の質問に回答済みかチェック
+        const currentQuestion = questions[state.currentQuestion];
+        if (state.answers[currentQuestion.id]) {
+            // スコアボードの開閉状態を保存
+            const scoresList = document.getElementById('scores-list');
+            const wasOpen = scoresList && scoresList.classList.contains('open');
+            
+            state.currentQuestion++;
+            saveStateToStorage(state);
+            render();
+            
+            // スコアボードの状態を復元
+            if (wasOpen) {
+                restoreScoresListState(true);
+            }
+        }
     }
 };
 
 window.reset = function () {
-    if (!confirm('診断データをすべて削除してやり直しますか？')) {
-        return;
+    // 確認ダイアログを表示
+    const confirmed = confirm(
+        '診断をリセットしますか?\n\n' +
+        '現在の回答データが全て削除されます。\n' +
+        'この操作は取り消せません。'
+    );
+    
+    if (!confirmed) {
+        return; // キャンセルされた場合は何もしない
     }
     
     clearStorage();
     state = createDefaultState();
     hasSeenShadowExplanation = false;
     render();
+    
+    // ページトップにスクロール
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // リセット完了通知
+    showResetNotification();
 };
 
 window.toggleScores = function() {
@@ -382,6 +428,28 @@ window.toggleScores = function() {
 // 影響計算関数
 // ============================================
 
+/**
+ * 現在の質問までのスコアを再計算
+ */
+function recalculateFunctionScores() {
+    const scores = createDefaultFunctionScores();
+    
+    // 現在の質問までのスコアのみを計算
+    for (let i = 0; i <= state.currentQuestion; i++) {
+        const q = questions[i];
+        const answer = state.answers[q.id];
+        
+        if (answer !== undefined) {
+            const answerValue = typeof answer === 'object' ? answer.value : answer;
+            const isReverse = typeof answer === 'object' ? answer.isReverse : false;
+            const delta = calculateScore(answerValue, isReverse);
+            scores[q.type] += delta;
+        }
+    }
+    
+    return scores;
+}
+
 function getProvisionalType() {
     const answeredCount = Object.keys(state.answers).length;
     
@@ -389,7 +457,9 @@ function getProvisionalType() {
         return DEFAULT_PROVISIONAL_TYPE;
     }
     
-    const result = determineMBTIType(state.functionScores, COGNITIVE_STACKS);
+    // 現在の質問までのスコアで判定
+    const currentScores = recalculateFunctionScores();
+    const result = determineMBTIType(currentScores, COGNITIVE_STACKS);
     return result.type;
 }
 
@@ -400,11 +470,14 @@ function calculateOptionImpacts(question) {
     const stack = COGNITIVE_STACKS[provisionalType];
     const weights = [4.0, 2.0, 1.0, 0.5];
     
+    // 現在の質問までのスコアを取得
+    const currentScores = recalculateFunctionScores();
+    
     return [1, 2, 3, 4, 5].map(value => {
         const delta = calculateScore(value, isReverse);
         const position = stack.indexOf(funcType);
         
-        const currentRaw = state.functionScores[funcType];
+        const currentRaw = currentScores[funcType];
         const currentNormalized = getNormalizedScore(currentRaw);
         
         const newRaw = currentRaw + delta;
@@ -450,7 +523,7 @@ function showShadowExplanation() {
     const tooltip = document.createElement('div');
     tooltip.className = 'shadow-explanation';
     tooltip.innerHTML = `
-        <div style="font-weight: 700; margin-bottom: 8px;">💡 Shadow機能とは？</div>
+        <div style="font-weight: 700; margin-bottom: 8px;">💡 Shadow機能とは?</div>
         <div style="font-size: 13px; line-height: 1.5; opacity: 0.9;">
             暫定タイプのスタックに含まれない機能です。<br>
             スコアは表示されますが、<strong>タイプ診断には影響しません。</strong>
@@ -480,12 +553,34 @@ function showShadowExplanation() {
     }, 5000);
 }
 
-function nextStep(callback) {
+function nextStep(callback, wasOpen = false) {
     setTimeout(() => {
         callback();
         render();
         isProcessing = false;
+        
+        // スコアボードが開いていた場合は復元
+        if (wasOpen) {
+            restoreScoresListState(true);
+        }
     }, ANIMATION_DELAY.SCREEN_TRANSITION);
+}
+
+/**
+ * スコアボードの状態を復元
+ */
+function restoreScoresListState(shouldBeOpen) {
+    setTimeout(() => {
+        const list = document.getElementById('scores-list');
+        const text = document.getElementById('toggle-text');
+        const icon = document.getElementById('toggle-icon');
+        
+        if (shouldBeOpen && list && text && icon) {
+            list.classList.add('open');
+            text.textContent = 'スコア詳細を非表示';
+            icon.textContent = '▲';
+        }
+    }, 0);
 }
 
 // ============================================
@@ -502,14 +597,19 @@ function updateProgressSection() {
     const provisionalType = getProvisionalType();
     const provisionalDesc = mbtiDescriptions[provisionalType];
     
-    // DOM要素を取得（初回のみ生成）
+    // DOM要素を取得
     let progressSection = document.getElementById('progress-section');
-    if (!progressSection.dataset.initialized) {
+    const previousType = progressSection.dataset.currentType;
+    
+    // 初回レンダリング または タイプが変更された場合は再生成
+    if (!progressSection.dataset.initialized || previousType !== provisionalType) {
         progressSection.innerHTML = generateProgressHTML();
         progressSection.dataset.initialized = 'true';
+        progressSection.dataset.currentType = provisionalType;
+        return; // 再生成したので差分更新は不要
     }
     
-    // 差分更新のみ
+    // 差分更新のみ(タイプが変わっていない場合)
     const typeBadge = document.getElementById('type-badge');
     const typeName = document.getElementById('type-name');
     const progressFill = document.getElementById('progress-fill');
@@ -553,11 +653,14 @@ function updateScoresList() {
     const stack = COGNITIVE_STACKS[provisionalType];
     const allFunctions = ['Ni', 'Ne', 'Si', 'Se', 'Ti', 'Te', 'Fi', 'Fe'];
     
+    // 現在の質問までのスコアを取得
+    const currentScores = recalculateFunctionScores();
+    
     // スタック順 + スタック外の順に更新
     const orderedFunctions = [...stack, ...allFunctions.filter(f => !stack.includes(f))];
     
     orderedFunctions.forEach(key => {
-        const normalizedValue = getNormalizedScore(state.functionScores[key]);
+        const normalizedValue = getNormalizedScore(currentScores[key]);
         const valueEl = document.querySelector(`[data-score-key="${key}"] .score-mini-value`);
         if (valueEl && valueEl.textContent !== String(normalizedValue)) {
             valueEl.textContent = normalizedValue;
@@ -568,7 +671,7 @@ function updateScoresList() {
 }
 
 /**
- * 進捗セクションのHTML生成（初回のみ）
+ * 進捗セクションのHTML生成(初回のみ)
  */
 function generateProgressHTML() {
     const provisionalType = getProvisionalType();
@@ -583,20 +686,26 @@ function generateProgressHTML() {
             ? '<div style="font-size:11px;color:#fbbf24;margin-top:4px;">⚠ 回答数が少ないため精度が低い可能性があります</div>'
             : '');
     
-    // スタック順（上段4つ）
+    // 現在の質問までのスコアを取得
+    const currentScores = recalculateFunctionScores();
+    
+    // スタック順(上段4つ)
     const stack = COGNITIVE_STACKS[provisionalType];
-    const stackScores = stack.map(key => ({
+    const stackLabels = ['主機能', '補助機能', '第三機能', '劣等機能'];
+    const stackScores = stack.map((key, index) => ({
         key,
-        normalizedValue: getNormalizedScore(state.functionScores[key])
+        label: stackLabels[index],
+        normalizedValue: getNormalizedScore(currentScores[key])
     }));
     
-    // スタック外（下段4つ）
+    // スタック外(下段4つ)
     const allFunctions = ['Ni', 'Ne', 'Si', 'Se', 'Ti', 'Te', 'Fi', 'Fe'];
     const shadowScores = allFunctions
         .filter(key => !stack.includes(key))
         .map(key => ({
             key,
-            normalizedValue: getNormalizedScore(state.functionScores[key])
+            label: 'Shadow',
+            normalizedValue: getNormalizedScore(currentScores[key])
         }));
     
     return `
@@ -620,12 +729,14 @@ function generateProgressHTML() {
             <div class="scores-list" id="scores-list">
                 ${stackScores.map(item => `
                     <div class="score-mini" data-score-key="${item.key}">
+                        <div class="score-mini-position">${escapeHtml(item.label)}</div>
                         <div class="score-mini-label">${escapeHtml(item.key)}</div>
                         <div class="score-mini-value">${item.normalizedValue}</div>
                     </div>
                 `).join('')}
                 ${shadowScores.map(item => `
                     <div class="score-mini score-mini-shadow" data-score-key="${item.key}">
+                        <div class="score-mini-position">${escapeHtml(item.label)}</div>
                         <div class="score-mini-label">${escapeHtml(item.key)}</div>
                         <div class="score-mini-value">${item.normalizedValue}</div>
                     </div>
@@ -674,9 +785,18 @@ function renderQuestion() {
     // フォーカス設定
     setInitialFocus();
     
-    // 戻るボタンの表示/非表示
+    // ナビゲーションボタンの表示/非表示
     const backBtn = document.getElementById('btn-back');
+    const nextBtn = document.getElementById('btn-next');
+    
     backBtn.style.display = state.currentQuestion > 0 ? 'block' : 'none';
+    
+    // 次へボタンは回答済み かつ 最終問題でない場合に表示
+    const currentQuestion = questions[state.currentQuestion];
+    const hasAnswer = state.answers[currentQuestion.id];
+    const isLastQuestion = state.currentQuestion >= questions.length - 1;
+    
+    nextBtn.style.display = hasAnswer && !isLastQuestion ? 'block' : 'none';
     
     // Shadow機能の説明 (初回のみ)
     if (isShadow && !hasSeenShadowExplanation) {
@@ -782,7 +902,7 @@ function generateQuestionHTML(q, impacts, currentValue, isShadow, funcColor) {
 }
 
 /**
- * イベント委譲：選択肢クリック
+ * イベント委譲:選択肢クリック
  */
 function handleOptionClick(event) {
     const button = event.target.closest('.option');
@@ -795,7 +915,7 @@ function handleOptionClick(event) {
 }
 
 /**
- * イベント委譲：選択肢キーボード
+ * イベント委譲:選択肢キーボード
  */
 function handleOptionKeydown(event) {
     const button = event.target.closest('.option');
@@ -910,35 +1030,18 @@ window.onload = function() {
  */
 function showRestoreNotification() {
     const notification = document.createElement('div');
+    notification.className = 'restore-notification';
     notification.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 12px;">
-            <div>
-                <div style="font-weight: 700; margin-bottom: 4px;">前回の続きから再開しました</div>
-                <div style="font-size: 12px; opacity: 0.8;">
-                    質問 ${state.currentQuestion + 1} / ${questions.length} から開始
-                </div>
-            </div>
+        <div style="font-weight: 600; margin-bottom: 4px;">前回の続きから再開</div>
+        <div style="font-size: 12px; opacity: 0.8;">
+            質問 ${state.currentQuestion + 1} / ${questions.length}
         </div>
     `;
-    
-    notification.style.position = 'fixed';
-    notification.style.top = '80px';
-    notification.style.left = '50%';
-    notification.style.transform = 'translateX(-50%)';
-    notification.style.background = 'rgba(96, 165, 250, 0.95)';
-    notification.style.color = 'white';
-    notification.style.padding = '16px 24px';
-    notification.style.borderRadius = '12px';
-    notification.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.4)';
-    notification.style.maxWidth = '500px';
-    notification.style.zIndex = '10000';
-    notification.style.animation = 'fadeIn 0.3s ease-out';
     
     document.body.appendChild(notification);
     
     setTimeout(() => {
-        notification.style.opacity = '0';
-        notification.style.transition = 'opacity 0.3s ease-out';
+        notification.classList.add('fade-out');
         setTimeout(() => notification.remove(), 300);
-    }, 4000);
+    }, 3000);
 }
