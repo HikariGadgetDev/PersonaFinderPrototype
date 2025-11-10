@@ -3,20 +3,27 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Persona Finder - Single Column</title>
+  <title>Persona Finder - Cognitive Function Analysis</title>
   <meta name="description" content="Jung理論に基づく認知機能診断アプリケーション">
   
+  <!-- Favicon (SVG) -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>Ψ</text></svg>">
+  
+  <!-- Preconnect for performance -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  
+  <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
+  <!-- Stylesheet -->
   <link rel="stylesheet" href="./assets/css/finder.css">
 </head>
 <body>
   <!-- ヘッダー -->
   <header class="app-header">
     <div class="header-content">
-      <div class="logo">Ψ</div>
+      <div class="logo" aria-label="Persona Finder Logo">Ψ</div>
       <div class="header-text">
         <h1 class="app-title">Cognitive Function Analysis</h1>
         <p class="app-subtitle">Jungian typology • Evidence-based assessment</p>
@@ -29,28 +36,33 @@
     <!-- 質問画面 -->
     <div id="question-screen">
       <!-- 進捗セクション -->
-      <section class="progress-section" id="progress-section">
+      <section class="progress-section" id="progress-section" aria-live="polite">
         <!-- JSで動的生成 -->
       </section>
 
       <!-- 質問セクション -->
-      <section class="question-section" id="question-content">
+      <section class="question-section" id="question-content" role="main" aria-live="polite">
         <!-- JSで動的生成 -->
       </section>
 
       <!-- ナビゲーション -->
-      <nav class="navigation">
-        <button class="btn btn-back" id="btn-back" onclick="goBack()">← 前の質問</button>
-        <button class="btn btn-next" id="btn-next" onclick="goNext()" style="display:none;">次の質問 →</button>
+      <nav class="navigation" aria-label="診断ナビゲーション">
+        <button class="btn btn-back" id="btn-back" onclick="goBack()" aria-label="前の質問に戻る">
+          ← 前の質問
+        </button>
+        <button class="btn btn-next" id="btn-next" onclick="goNext()" style="display:none;" aria-label="次の質問へ進む">
+          次の質問 →
+        </button>
       </nav>
     </div>
 
     <!-- 結果画面 -->
-    <div id="result-screen" class="result-screen">
+    <div id="result-screen" class="result-screen" role="region" aria-live="polite" aria-label="診断結果">
       <!-- JSで動的生成 -->
     </div>
   </main>
 
+  <!-- JavaScript Module -->
   <script type="module" src="./app.js"></script>
 </body>
 </html>
