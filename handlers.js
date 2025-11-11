@@ -1,11 +1,77 @@
 // ============================================
-// handlers.js - Event Handlers
+// handlers.js - Event Handlers (リファクタ版)
 // ============================================
 
+// ============================================
+// 型定義 (JSDoc)
+// ============================================
+
+/**
+ * @typedef {Object} DiagnosisState
+ * @property {number} currentQuestion - 現在の質問インデックス
+ * @property {Object<string, {value: number, isReverse: boolean}>} answers - 回答記録
+ * @property {Object<string, number>} functionScores - 機能スコア
+ * @property {boolean} showResult - 結果表示フラグ
+ */
+
+/**
+ * @typedef {Object} Question
+ * @property {string} id - 質問ID
+ * @property {string} text - 質問文
+ * @property {string} function - 認知機能
+ * @property {boolean} [reverse] - 逆転項目フラグ
+ */
+
+/**
+ * @typedef {Object} StateManager
+ * @property {() => DiagnosisState} getState - 状態取得関数
+ * @property {(newState: DiagnosisState | Function) => void} setState - 状態更新関数
+ */
+
+/**
+ * @typedef {Object} StorageManager
+ * @property {(state: DiagnosisState) => boolean} saveState - 状態保存
+ * @property {() => DiagnosisState|null} loadState - 状態読み込み
+ * @property {() => void} clearAll - 全削除
+ * @property {{get: () => boolean, set: () => void}} shadowSeen - Shadow表示履歴
+ */
+
+// ============================================
+// 定数定義
+// ============================================
+
+const KEYBOARD_KEYS = {
+    ARROW_LEFT: 'ArrowLeft',
+    ARROW_RIGHT: 'ArrowRight',
+    HOME: 'Home',
+    END: 'End',
+    ENTER: 'Enter',
+    SPACE: ' '
+};
+
+const TRANSITION_DELAY = 100;
+
+// ============================================
+// イベントハンドラー生成関数
+// ============================================
+
+/**
+ * イベントハンドラーを生成
+ * @param {StateManager} diagnosisState - 状態管理オブジェクト
+ * @param {Question[]} questions - 質問配列
+ * @param {(value: number, isReverse: boolean) => number} calculateScore - スコア計算関数
+ * @param {StorageManager} storage - ストレージマネージャー
+ * @returns {Object} ハンドラー関数群
+ */
 export function useHandlers(diagnosisState, questions, calculateScore, storage) {
     const { getState, setState } = diagnosisState;
 
     return {
+        /**
+         * 回答ハンドラー
+         * @param {number} value - 選択された値 (1-5)
+         * @param {Object} event - イベントオブジェクト
+         */
         handleAnswer: (value, event) => {
             const state = getState();
             const question = questions[state.currentQuestion];
@@ -46,9 +112,12 @@ export function useHandlers(diagnosisState, questions, calculateScore, storage) 
                         currentQuestion: prev.currentQuestion + 1
                     }));
                 }
-            }, 100);
+            }, TRANSITION_DELAY);
         },
 
+        /**
+         * 戻るハンドラー
+         */
         goBack: () => {
             const state = getState();
             if (state.currentQuestion > 0) {
@@ -59,6 +128,9 @@ export function useHandlers(diagnosisState, questions, calculateScore, storage) 
             }
         },
 
+        /**
+         * 次へハンドラー
+         */
         goNext: () => {
             const state = getState();
             const question = questions[state.currentQuestion];
@@ -71,8 +143,11 @@ export function useHandlers(diagnosisState, questions, calculateScore, storage) 
             }
         },
 
+        /**
+         * リセットハンドラー
+         */
         reset: () => {
-            // アラート不要、即座にリセット
+            // ストレージをクリア
             storage.clearAll();
             
             // 初期状態に戻す
@@ -99,40 +174,52 @@ export function useHandlers(diagnosisState, questions, calculateScore, storage) 
             window.scrollTo({ top: 0, behavior: 'smooth' });
         },
 
+        /**
+         * キーボードナビゲーションハンドラー
+         * @param {KeyboardEvent} event - キーボードイベント
+         * @param {number} currentValue - 現在の値
+         */
         handleKeyboardNav: (event, currentValue) => {
-            const state = getState();
             const options = Array.from(document.querySelectorAll('.option'));
             const currentIndex = options.findIndex(opt => 
                 parseInt(opt.dataset.value) === currentValue
             );
 
             switch (event.key) {
-                case 'ArrowLeft':
+                case KEYBOARD_KEYS.ARROW_LEFT:
                     event.preventDefault();
                     if (currentIndex > 0) {
-                        options[currentIndex - 1].focus();
+                        const prevOption = options[currentIndex - 1];
+                        prevOption.focus();
+                        updateTabIndex(options, prevOption);
                     }
                     break;
 
-                case 'ArrowRight':
+                case KEYBOARD_KEYS.ARROW_RIGHT:
                     event.preventDefault();
                     if (currentIndex < options.length - 1) {
-                        options[currentIndex + 1].focus();
+                        const nextOption = options[currentIndex + 1];
+                        nextOption.focus();
+                        updateTabIndex(options, nextOption);
                     }
                     break;
 
-                case 'Home':
+                case KEYBOARD_KEYS.HOME:
                     event.preventDefault();
-                    options[0].focus();
+                    const firstOption = options[0];
+                    firstOption.focus();
+                    updateTabIndex(options, firstOption);
                     break;
 
-                case 'End':
+                case KEYBOARD_KEYS.END:
                     event.preventDefault();
-                    options[options.length - 1].focus();
+                    const lastOption = options[options.length - 1];
+                    lastOption.focus();
+                    updateTabIndex(options, lastOption);
                     break;
 
-                case 'Enter':
-                case ' ':
+                case KEYBOARD_KEYS.ENTER:
+                case KEYBOARD_KEYS.SPACE:
                     event.preventDefault();
                     this.handleAnswer(currentValue, event);
                     break;
@@ -142,10 +229,32 @@ export function useHandlers(diagnosisState, questions, calculateScore, storage) 
                     const num = parseInt(event.key);
                     if (num >= 1 && num <= 5) {
                         event.preventDefault();
+                        const targetOption = options.find(opt => 
+                            parseInt(opt.dataset.value) === num
+                        );
+                        if (targetOption) {
+                            targetOption.focus();
+                            updateTabIndex(options, targetOption);
+                        }
                         this.handleAnswer(num, event);
                     }
                     break;
             }
         }
     };
+}
+
+// ============================================
+// ユーティリティ関数
+// ============================================
+
+/**
+ * tabindexを更新（ローミングタブインデックスパターン）
+ * @param {HTMLElement[]} options - オプション要素配列
+ * @param {HTMLElement} focusedOption - フォーカスされた要素
+ */
+function updateTabIndex(options, focusedOption) {
+    options.forEach(opt => {
+        opt.tabIndex = opt === focusedOption ? 0 : -1;
+    });
 }

@@ -1,32 +1,116 @@
-// core.js
+// ============================================
+// core.js - Core Logic (リファクタ版)
+// ============================================
+
+// ============================================
+// 型定義 (JSDoc)
+// ============================================
+
+/**
+ * @typedef {Object} FunctionScore
+ * @property {number} Ni - 内向的直観
+ * @property {number} Ne - 外向的直観
+ * @property {number} Si - 内向的感覚
+ * @property {number} Se - 外向的感覚
+ * @property {number} Ti - 内向的思考
+ * @property {number} Te - 外向的思考
+ * @property {number} Fi - 内向的感情
+ * @property {number} Fe - 外向的感情
+ */
+
+/**
+ * @typedef {Object} Contradiction
+ * @property {string} questionA - 質問A ID
+ * @property {string} questionB - 質問B ID
+ * @property {number} valueA - 回答A値
+ * @property {number} valueB - 回答B値
+ * @property {number} severity - 深刻度 (0-1)
+ */
+
+/**
+ * @typedef {Object} DiagnosticResult
+ * @property {string} type - 判定されたMBTIタイプ
+ * @property {number} confidence - 確信度 (0-100)
+ * @property {number} originalConfidence - 調整前の確信度
+ * @property {number} consistency - 一貫性スコア (0-100)
+ * @property {number} contradictionCount - 矛盾件数
+ * @property {Contradiction[]} contradictions - 矛盾詳細
+ * @property {string[]} top2 - トップ2タイプ
+ * @property {Object<string, number>} typeScores - 全タイプのスコア
+ * @property {string|null} warning - 警告メッセージ
+ */
 
 // ============================================
 // 定数定義: Jung理論に基づく認知機能重み付け
 // ============================================
 
 const JUNG_FUNCTION_WEIGHTS = {
+    /** 主機能の重み */
     DOMINANT: 4.0,
+    /** 補助機能の重み */
     AUXILIARY: 2.0,
+    /** 第三機能の重み */
     TERTIARY: 1.0,
+    /** 劣等機能の重み */
     INFERIOR: 0.5
 };
 
+/** Likertスケールの中点 */
 const LIKERT_SCALE_MIDPOINT = 3;
+
+/** スコア強調指数 (1.0=線形, >1.0=極端な回答を強調) */
 const SCORE_EMPHASIS_EXPONENT = 1.2;
+
+/** 逆転項目の計算用ベース値 */
 const LIKERT_SCALE_REVERSE_BASE = 6;
 
+/** スコア正規化の設定 */
 const SCORE_NORMALIZATION = {
+    /** 生スコアの最小値 */
     MIN: -20,
+    /** 生スコアの最大値 */
     MAX: 20,
+    /** 出力スコアの最小値 */
     OUTPUT_MIN: 0,
+    /** 出力スコアの最大値 */
     OUTPUT_MAX: 100
 };
 
+/** 確信度計算時の除算エラー回避用イプシロン */
 const CONFIDENCE_CALCULATION_EPSILON = 1e-6;
 
+/** 確信度の範囲 */
 const CONFIDENCE_BOUNDS = {
+    /** 最小値 */
     MIN: 0,
+    /** 最大値 */
     MAX: 100
+};
+
+/** 診断信頼性の閾値 */
+const DIAGNOSTIC_THRESHOLDS = {
+    /** 高確信度の閾値 */
+    HIGH_CONFIDENCE: 70,
+    /** 中確信度の閾値 */
+    MEDIUM_CONFIDENCE: 40,
+    /** 高一貫性の閾値 */
+    HIGH_CONSISTENCY: 80,
+    /** 中一貫性の閾値 */
+    MEDIUM_CONSISTENCY: 60,
+    /** 次点タイプ表示の確信度閾値 */
+    SHOW_ALTERNATIVE_THRESHOLD: 40,
+    /** 警告表示の一貫性閾値 */
+    WARNING_CONSISTENCY_THRESHOLD: 70
+};
+
+/** 矛盾検出の設定 */
+const CONTRADICTION_DETECTION = {
+    /** 矛盾と判定する回答差の最小値 */
+    MIN_DIFFERENCE: 2,
+    /** 深刻度の最大値 */
+    MAX_SEVERITY: 1.0,
+    /** 一貫性ペナルティの係数 */
+    PENALTY_MULTIPLIER: 200
 };
 
 // ============================================
@@ -86,10 +170,20 @@ export const mbtiDescriptions = {
 // 入力検証ユーティリティ
 // ============================================
 
+/**
+ * Likert値の妥当性チェック
+ * @param {number} value - 検証する値
+ * @returns {boolean} 1-5の整数ならtrue
+ */
 function isValidLikertValue(value) {
     return Number.isInteger(value) && value >= 1 && value <= 5;
 }
 
+/**
+ * 機能タイプの妥当性チェック
+ * @param {string} funcType - 機能タイプ
+ * @returns {boolean} FUNCTIONSに存在すればtrue
+ */
 function isValidFunctionType(funcType) {
     return funcType in FUNCTIONS;
 }
@@ -98,6 +192,12 @@ function isValidFunctionType(funcType) {
 // スコア計算
 // ============================================
 
+/**
+ * Likert値から認知機能スコアを計算
+ * @param {number} value - Likert値 (1-5)
+ * @param {boolean} [isReverse=false] - 逆転項目フラグ
+ * @returns {number} 計算されたスコア
+ */
 export function calculateScore(value, isReverse = false) {
     if (!isValidLikertValue(value)) {
         console.error(`[calculateScore] 不正な値: ${value}。1〜5の整数が必要です。0を返します。`);
@@ -115,10 +215,24 @@ export function calculateScore(value, isReverse = false) {
     return emphasizedScore;
 }
 
+/**
+ * 生スコアを0-100に正規化
+ * @param {number} rawScore - 生スコア
+ * @returns {number} 正規化されたスコア (0-100)
+ */
 function normalizeScore(rawScore) {
     const { MIN, MAX, OUTPUT_MIN, OUTPUT_MAX } = SCORE_NORMALIZATION;
     const normalized = ((rawScore - MIN) / (MAX - MIN)) * (OUTPUT_MAX - OUTPUT_MIN) + OUTPUT_MIN;
     return Math.round(Math.max(OUTPUT_MIN, Math.min(OUTPUT_MAX, normalized)));
+}
+
+/**
+ * 公開用の正規化関数
+ * @param {number} rawScore - 生スコア
+ * @returns {number} 正規化されたスコア (0-100)
+ */
+export function getNormalizedScore(rawScore) {
+    return normalizeScore(rawScore);
 }
 
 // ============================================
@@ -127,12 +241,20 @@ function normalizeScore(rawScore) {
 
 /**
  * 2つの回答が矛盾しているかチェック
+ * @param {number} valueA - 回答A
+ * @param {number} valueB - 回答B
+ * @param {Object} questionA - 質問A
+ * @param {Object} questionB - 質問B
+ * @returns {boolean} 矛盾していればtrue
  */
 function checkContradiction(valueA, valueB, questionA, questionB) {
-    const normalizedA = questionA.reverse ? (6 - valueA) : valueA;
-    const normalizedB = questionB.reverse ? (6 - valueB) : valueB;
+    const normalizedA = questionA.reverse ? (LIKERT_SCALE_REVERSE_BASE - valueA) : valueA;
+    const normalizedB = questionB.reverse ? (LIKERT_SCALE_REVERSE_BASE - valueB) : valueB;
     
-    if (normalizedA === 3 && normalizedB === 3) return false;
+    // どちらも中立なら矛盾なし
+    if (normalizedA === LIKERT_SCALE_MIDPOINT && normalizedB === LIKERT_SCALE_MIDPOINT) {
+        return false;
+    }
     
     const isAPositive = normalizedA >= 4;
     const isANegative = normalizedA <= 2;
@@ -143,14 +265,34 @@ function checkContradiction(valueA, valueB, questionA, questionB) {
 }
 
 /**
- * 回答の矛盾を検出する
- * @param {Object} answers - { questionId: { value, isReverse } }
+ * 矛盾の深刻度を計算 (0-1)
+ * @param {number} valueA - 回答A
+ * @param {number} valueB - 回答B
+ * @param {boolean} isReverseA - 質問Aが逆転項目か
+ * @param {boolean} isReverseB - 質問Bが逆転項目か
+ * @returns {number} 深刻度 (0-1)
+ */
+function calculateSeverity(valueA, valueB, isReverseA, isReverseB) {
+    const normalizedA = isReverseA ? (LIKERT_SCALE_REVERSE_BASE - valueA) : valueA;
+    const normalizedB = isReverseB ? (LIKERT_SCALE_REVERSE_BASE - valueB) : valueB;
+    
+    const diff = Math.abs(normalizedA - normalizedB);
+    
+    // diff=4 (5と1) → 深刻度1.0 (完全な矛盾)
+    // diff=3 (5と2) → 深刻度0.75
+    // diff=2 (5と3) → 深刻度0.5 (軽度の矛盾)
+    return diff / 4.0;
+}
+
+/**
+ * 回答の矛盾を検出
+ * @param {Object<string, {value: number, isReverse: boolean}>} answers - 回答データ
  * @param {Array} questions - 質問データ配列
- * @returns {Object} { contradictions: [...], consistencyScore: 0-100, count: number }
+ * @returns {{contradictions: Contradiction[], consistencyScore: number, count: number}} 矛盾分析結果
  */
 export function detectContradictions(answers, questions) {
     const contradictions = [];
-    const checkedPairs = new Set(); // 重複チェック用
+    const checkedPairs = new Set();
     const answeredQuestions = questions.filter(q => answers[q.id]);
     
     for (const question of answeredQuestions) {
@@ -160,10 +302,8 @@ export function detectContradictions(answers, questions) {
             const contradictIds = question.related.contradicts;
             
             for (const contradictId of contradictIds) {
-                // ペアIDを作成（常に小さい方を先に）
                 const pairId = [question.id, contradictId].sort().join('-');
                 
-                // すでにチェック済みならスキップ
                 if (checkedPairs.has(pairId)) continue;
                 checkedPairs.add(pairId);
                 
@@ -208,68 +348,40 @@ export function detectContradictions(answers, questions) {
 }
 
 /**
- * 矛盾の深刻度を計算(0-1)
- * 正規化後の値の差を使用
- */
-function calculateSeverity(valueA, valueB, isReverseA, isReverseB) {
-    // 正規化（逆転項目を考慮）
-    const normalizedA = isReverseA ? (6 - valueA) : valueA;
-    const normalizedB = isReverseB ? (6 - valueB) : valueB;
-    
-    // 正規化後の差の絶対値（0-4）
-    const diff = Math.abs(normalizedA - normalizedB);
-    
-    // 0-1にスケール
-    // diff=4（5と1）→ 深刻度1.0（完全な矛盾）
-    // diff=3（5と2）→ 深刻度0.75
-    // diff=2（5と3）→ 深刻度0.5（軽度の矛盾）
-    return diff / 4.0;
-}
-
-/**
- * 一貫性スコアを計算(0-100)
- * 
- * 計算ロジック:
- * 1. 矛盾がない → 100%
- * 2. 矛盾率 = (矛盾件数 / 矛盾可能なペア数) ← より厳密
- * 3. 深刻度加重 = 矛盾率 × 平均深刻度
- * 4. スコア = 100 - (深刻度加重 × 200) ← より敏感に
+ * 一貫性スコアを計算 (0-100)
+ * @param {Contradiction[]} contradictions - 矛盾リスト
+ * @param {number} totalAnswered - 回答済み質問数
+ * @returns {number} 一貫性スコア (0-100)
  */
 function calculateConsistencyScore(contradictions, totalAnswered) {
     if (totalAnswered === 0) return 100;
     if (contradictions.length === 0) return 100;
     
-    // 矛盾の総深刻度
     const totalSeverity = contradictions.reduce((sum, c) => sum + c.severity, 0);
-    
-    // 平均深刻度（0-1）
     const avgSeverity = totalSeverity / contradictions.length;
     
-    // 理論上の最大矛盾件数（answered questions の約1/4が矛盾ペアと仮定）
-    // 実際にはrelated.contradictsの数に依存するが、概算として
+    // 理論上の最大矛盾件数 (回答数の約1/4と仮定)
     const maxPossibleContradictions = Math.max(1, totalAnswered / 4);
     
-    // 矛盾率（0-1以上）
     const contradictionRate = Math.min(1, contradictions.length / maxPossibleContradictions);
-    
-    // 深刻度加重（0-1）
     const weightedRate = contradictionRate * avgSeverity;
     
-    // スコア計算（より敏感に: ×200で矛盾が多いと急激に下がる）
-    // 例: 矛盾率0.5, 深刻度0.8 → 0.5×0.8×200 = 80 → スコア20
-    const score = Math.max(0, 100 - (weightedRate * 200));
+    // より敏感に: ×200で矛盾が多いと急激に下がる
+    const score = Math.max(0, 100 - (weightedRate * CONTRADICTION_DETECTION.PENALTY_MULTIPLIER));
     
     return Math.round(score);
 }
 
 /**
  * 確信度に一貫性ペナルティを適用
- * @param {number} originalConfidence - 元の確信度(0-100)
- * @param {number} consistencyScore - 一貫性スコア(0-100)
- * @returns {number} 調整後の確信度(0-100)
+ * @param {number} originalConfidence - 元の確信度 (0-100)
+ * @param {number} consistencyScore - 一貫性スコア (0-100)
+ * @returns {number} 調整後の確信度 (0-100)
  */
 function applyConsistencyPenalty(originalConfidence, consistencyScore) {
-    if (consistencyScore >= 90) return originalConfidence;
+    if (consistencyScore >= DIAGNOSTIC_THRESHOLDS.HIGH_CONSISTENCY) {
+        return originalConfidence;
+    }
     
     const penaltyFactor = consistencyScore / 100;
     const adjustedConfidence = originalConfidence * penaltyFactor;
@@ -281,6 +393,12 @@ function applyConsistencyPenalty(originalConfidence, consistencyScore) {
 // MBTIタイプ判定
 // ============================================
 
+/**
+ * 機能スコアからMBTIタイプを判定
+ * @param {FunctionScore} functionScores - 機能スコア
+ * @param {Object<string, string[]>} COGNITIVE_STACKS - スタック定義
+ * @returns {{type: string, confidence: number, top2: string[], typeScores: Object<string, number>}} 判定結果
+ */
 export function determineMBTIType(functionScores, COGNITIVE_STACKS) {
     if (!functionScores || typeof functionScores !== 'object') {
         console.error('[determineMBTIType] functionScoresが不正です');
@@ -321,7 +439,6 @@ export function determineMBTIType(functionScores, COGNITIVE_STACKS) {
     const [secondType, secondScore] = sortedTypes[1] || [null, 0];
     const [thirdType, thirdScore] = sortedTypes[2] || [null, 0];
     
-    // 改善された確信度計算
     const confidence = calculateImprovedConfidence(
         firstScore, 
         secondScore, 
@@ -339,39 +456,36 @@ export function determineMBTIType(functionScores, COGNITIVE_STACKS) {
 
 /**
  * 改善された確信度計算
- * 
- * 考慮要素:
- * 1. 1位と2位の差（主要因）
- * 2. 1位と3位の差（上位の分散）
- * 3. 1位のスコア絶対値（十分な得点があるか）
- * 4. 2位と3位の差（2位の明確さ）
+ * @param {number} firstScore - 1位スコア
+ * @param {number} secondScore - 2位スコア
+ * @param {number} thirdScore - 3位スコア
+ * @param {Array} sortedTypes - ソート済みタイプ配列
+ * @returns {number} 確信度 (0-100)
  */
 function calculateImprovedConfidence(firstScore, secondScore, thirdScore, sortedTypes) {
-    // スコア差による基本確信度（0-100）
+    // スコア差による基本確信度
     const scoreDiff = firstScore - secondScore;
     const scoreSum = Math.abs(firstScore) + Math.abs(secondScore) + CONFIDENCE_CALCULATION_EPSILON;
     const baseConfidence = 100 * (scoreDiff / scoreSum);
     
-    // ボーナス1: 1位のスコアが十分に高い（+0〜15点）
-    // 全タイプの平均を計算
+    // ボーナス1: 1位のスコアが十分に高い (+0〜15点)
     const avgScore = sortedTypes.reduce((sum, [, score]) => sum + score, 0) / sortedTypes.length;
     const scoreBonus = firstScore > avgScore * 1.5 ? 15 : 
                        firstScore > avgScore * 1.2 ? 10 : 
                        firstScore > avgScore ? 5 : 0;
     
-    // ボーナス2: 1位と3位の差が大きい（+0〜10点）
+    // ボーナス2: 1位と3位の差が大きい (+0〜10点)
     const thirdDiff = firstScore - thirdScore;
     const thirdGapBonus = thirdDiff > (firstScore * 0.4) ? 10 :
                           thirdDiff > (firstScore * 0.3) ? 7 :
                           thirdDiff > (firstScore * 0.2) ? 4 : 0;
     
-    // ペナルティ: 2位と3位が接近している（-0〜10点）
+    // ペナルティ: 2位と3位が接近している (-0〜10点)
     const secondThirdDiff = Math.abs(secondScore - thirdScore);
     const secondThirdGap = secondThirdDiff / (Math.abs(secondScore) + CONFIDENCE_CALCULATION_EPSILON);
     const proximityPenalty = secondThirdGap < 0.1 ? 10 :
                             secondThirdGap < 0.2 ? 5 : 0;
     
-    // 最終確信度
     const finalConfidence = baseConfidence + scoreBonus + thirdGapBonus - proximityPenalty;
     
     return Math.max(
@@ -381,12 +495,12 @@ function calculateImprovedConfidence(firstScore, secondScore, thirdScore, sorted
 }
 
 /**
- * 矛盾検出を含むMBTIタイプ判定（拡張版）
- * @param {Object} functionScores - 認知機能スコア
- * @param {Object} COGNITIVE_STACKS - 機能スタック定義
+ * 矛盾検出を含むMBTIタイプ判定 (拡張版)
+ * @param {FunctionScore} functionScores - 認知機能スコア
+ * @param {Object<string, string[]>} COGNITIVE_STACKS - スタック定義
  * @param {Object} answers - 回答データ
  * @param {Array} questions - 質問データ配列
- * @returns {Object} 判定結果（矛盾情報・調整済み確信度を含む）
+ * @returns {DiagnosticResult} 判定結果
  */
 export function determineMBTITypeWithConsistency(functionScores, COGNITIVE_STACKS, answers, questions) {
     const result = determineMBTIType(functionScores, COGNITIVE_STACKS);
@@ -405,7 +519,7 @@ export function determineMBTITypeWithConsistency(functionScores, COGNITIVE_STACK
         consistency: contradictionAnalysis.consistencyScore,
         contradictionCount: contradictionAnalysis.count,
         contradictions: contradictionAnalysis.contradictions,
-        warning: contradictionAnalysis.consistencyScore < 70 
+        warning: contradictionAnalysis.consistencyScore < DIAGNOSTIC_THRESHOLDS.WARNING_CONSISTENCY_THRESHOLD
             ? "回答に矛盾が見られます。診断結果の信頼性が低い可能性があります。"
             : null
     };
@@ -422,17 +536,20 @@ export const CONFIG = {
     LIKERT_SCALE_MIDPOINT,
     LIKERT_SCALE_REVERSE_BASE,
     CONFIDENCE_CALCULATION_EPSILON,
-    CONFIDENCE_BOUNDS
+    CONFIDENCE_BOUNDS,
+    DIAGNOSTIC_THRESHOLDS,
+    CONTRADICTION_DETECTION
 };
-
-export function getNormalizedScore(rawScore) {
-    return normalizeScore(rawScore);
-}
 
 // ============================================
 // デバッグ用ユーティリティ
 // ============================================
 
+/**
+ * 詳細な機能スコア情報を取得
+ * @param {FunctionScore} functionScores - 機能スコア
+ * @returns {Array<Object>} 詳細情報配列
+ */
 export function getDetailedFunctionScores(functionScores) {
     if (!functionScores || typeof functionScores !== 'object') {
         console.error('[getDetailedFunctionScores] 入力が不正です');
@@ -463,6 +580,14 @@ export function getDetailedFunctionScores(functionScores) {
         .sort((a, b) => b.normalizedScore - a.normalizedScore);
 }
 
+/**
+ * 診断レポートを生成
+ * @param {FunctionScore} functionScores - 機能スコア
+ * @param {Object<string, string[]>} COGNITIVE_STACKS - スタック定義
+ * @param {Object} answers - 回答データ
+ * @param {Array} questions - 質問データ
+ * @returns {Object} 診断レポート
+ */
 export function generateDiagnosticReport(functionScores, COGNITIVE_STACKS, answers, questions) {
     const result = determineMBTITypeWithConsistency(functionScores, COGNITIVE_STACKS, answers, questions);
     const detailedScores = getDetailedFunctionScores(functionScores);
@@ -518,6 +643,14 @@ export function generateDiagnosticReport(functionScores, COGNITIVE_STACKS, answe
     return report;
 }
 
+/**
+ * 診断レポートをコンソールに出力
+ * @param {FunctionScore} functionScores - 機能スコア
+ * @param {Object<string, string[]>} COGNITIVE_STACKS - スタック定義
+ * @param {Object} answers - 回答データ
+ * @param {Array} questions - 質問データ
+ * @returns {Object} 診断レポート
+ */
 export function printDiagnosticReport(functionScores, COGNITIVE_STACKS, answers, questions) {
     const report = generateDiagnosticReport(functionScores, COGNITIVE_STACKS, answers, questions);
     
@@ -531,7 +664,7 @@ export function printDiagnosticReport(functionScores, COGNITIVE_STACKS, answers,
     if (report.result.warning) console.warn('⚠️', report.result.warning);
     console.groupEnd();
     
-    console.group('🔄 矛盾分析');
+    console.group('📄 矛盾分析');
     console.log('矛盾件数:', report.contradictions.count);
     if (report.contradictions.count > 0) {
         console.table(report.contradictions.details);
@@ -546,7 +679,7 @@ export function printDiagnosticReport(functionScores, COGNITIVE_STACKS, answers,
     console.table(report.typeScores.slice(0, 5));
     console.groupEnd();
     
-    console.group('🔍 機能スタック分析');
+    console.group('📝 機能スタック分析');
     console.log('タイプ:', report.stackAnalysis.determinedType);
     console.log('スタック:', report.stackAnalysis.stack.join(' → '));
     console.table(report.stackAnalysis.breakdown);
@@ -561,6 +694,11 @@ export function printDiagnosticReport(functionScores, COGNITIVE_STACKS, answers,
 // バリデーション用ユーティリティ
 // ============================================
 
+/**
+ * 機能スコアの妥当性を検証
+ * @param {FunctionScore} functionScores - 機能スコア
+ * @returns {{isValid: boolean, errors: string[]}} 検証結果
+ */
 export function validateFunctionScores(functionScores) {
     const errors = [];
     
@@ -591,6 +729,11 @@ export function validateFunctionScores(functionScores) {
 // テスト用ヘルパー関数
 // ============================================
 
+/**
+ * モックスコアを生成 (テスト用)
+ * @param {string} targetType - 目標MBTIタイプ
+ * @returns {FunctionScore|null} モックスコア
+ */
 export function generateMockScores(targetType) {
     if (!(targetType in COGNITIVE_STACKS)) {
         console.error(`[generateMockScores] 不正なタイプ: ${targetType}`);
@@ -604,14 +747,18 @@ export function generateMockScores(targetType) {
         Ti: 0, Te: 0, Fi: 0, Fe: 0
     };
     
-    mockScores[stack[0]] = 15;
-    mockScores[stack[1]] = 10;
-    mockScores[stack[2]] = 5;
-    mockScores[stack[3]] = -5;
+    mockScores[stack[0]] = 15;  // 主機能
+    mockScores[stack[1]] = 10;  // 補助機能
+    mockScores[stack[2]] = 5;   // 第三機能
+    mockScores[stack[3]] = -5;  // 劣等機能
     
     return mockScores;
 }
 
+/**
+ * 定数の整合性を検証
+ * @returns {boolean} すべて合格ならtrue
+ */
 export function validateConstants() {
     const checks = [];
     
@@ -644,6 +791,12 @@ export function validateConstants() {
               Object.keys(mbtiDescriptions).length === 16
     });
     
+    checks.push({
+        name: '診断閾値の妥当性チェック',
+        pass: DIAGNOSTIC_THRESHOLDS.HIGH_CONFIDENCE > DIAGNOSTIC_THRESHOLDS.MEDIUM_CONFIDENCE &&
+              DIAGNOSTIC_THRESHOLDS.HIGH_CONSISTENCY > DIAGNOSTIC_THRESHOLDS.MEDIUM_CONSISTENCY
+    });
+    
     const allPassed = checks.every(check => check.pass);
     
     if (!allPassed) {
@@ -658,6 +811,7 @@ export function validateConstants() {
     return allPassed;
 }
 
+// 開発環境でのみ定数検証を実行
 if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
     validateConstants();
 }

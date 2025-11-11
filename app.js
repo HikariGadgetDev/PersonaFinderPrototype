@@ -1,5 +1,5 @@
 // ============================================
-// app.js - Application Entry Point (非同期対応版)
+// app.js - Application Entry Point (リファクタ版)
 // ============================================
 
 import { useDiagnosisState, useLocalStorage } from './hooks.js';
@@ -14,20 +14,84 @@ import {
 } from './core.js';
 
 // ============================================
-// グローバル変数(初期化後に設定)
+// 型定義 (JSDoc)
 // ============================================
 
-let questions = [];
-let COGNITIVE_STACKS = {};
-let mbtiDescriptions = {};
-let diagnosisState = null;
-let handlers = null;
-let storage = null;
+/**
+ * @typedef {Object} Question
+ * @property {string} id - 質問ID
+ * @property {string} text - 質問文
+ * @property {keyof typeof FUNCTIONS} function - 認知機能
+ * @property {boolean} [reverse] - 逆転項目フラグ
+ * @property {number} priority - 優先度
+ * @property {string[]} tags - タグ
+ * @property {Object} [related] - 関連情報
+ * @property {string[]} [related.contradicts] - 矛盾する質問ID
+ */
+
+/**
+ * @typedef {Object} DiagnosisState
+ * @property {number} currentQuestion - 現在の質問インデックス
+ * @property {Object<string, {value: number, isReverse: boolean}>} answers - 回答記録
+ * @property {Object<string, number>} functionScores - 機能スコア
+ * @property {boolean} showResult - 結果表示フラグ
+ */
+
+/**
+ * @typedef {Object} AppContext
+ * @property {Question[]} questions - 質問配列
+ * @property {Object<string, string[]>} cognitiveStacks - 認知スタック定義
+ * @property {Object<string, {name: string, description: string}>} mbtiDescriptions - MBTI説明
+ * @property {ReturnType<typeof useDiagnosisState>} diagnosisState - 診断状態
+ * @property {ReturnType<typeof useHandlers>} handlers - イベントハンドラー
+ * @property {ReturnType<typeof useLocalStorage>} storage - ストレージ
+ */
+
+// ============================================
+// 定数定義
+// ============================================
+
+const CONFIG = {
+    /** 信頼できる診断に必要な最小回答数 */
+    MIN_RELIABLE_ANSWERS: 8,
+    /** Shadow説明表示の遅延時間 (ms) */
+    SHADOW_EXPLANATION_DELAY: 500,
+    /** 通知表示時間 (ms) */
+    NOTIFICATION_DURATION: 3000,
+    /** シャッフル最大試行回数 */
+    SHUFFLE_MAX_ATTEMPTS: 5000,
+    /** シャッフル制約緩和試行回数 */
+    SHUFFLE_RELAXED_ATTEMPTS: 1000,
+    /** 画面遷移アニメーション遅延 (ms) */
+    TRANSITION_DELAY: 100,
+};
+
+const ERROR_MESSAGES = {
+    INIT_FAILED: 'アプリケーションの初期化に失敗しました',
+    NO_QUESTIONS: '質問データが読み込まれませんでした',
+    NETWORK_ERROR: 'ネットワークエラーが発生しました。オフラインモードで起動します。',
+    JSON_PARSE_ERROR: 'データの読み込みに失敗しました。バックアップデータを使用します。',
+};
+
+// ============================================
+// アプリケーションコンテキスト (グローバル変数削減)
+// ============================================
+
+/** @type {AppContext|null} */
+let appContext = null;
+
+/** Shadow機能説明の表示済みフラグ */
+let hasSeenShadowExplanation = false;
 
 // ============================================
 // ユーティリティ: 質問のシャッフル
 // ============================================
 
+/**
+ * シード付き疑似乱数生成器
+ * @param {number} seed - シード値
+ * @returns {() => number} 0-1の乱数を返す関数
+ */
 function seededRandom(seed) {
     let state = seed;
     return function() {
@@ -36,6 +100,12 @@ function seededRandom(seed) {
     };
 }
 
+/**
+ * Fisher-Yatesシャッフル (シード付き)
+ * @param {Question[]} array - 配列
+ * @param {number} seed - シード値
+ * @returns {Question[]} シャッフルされた配列
+ */
 function fisherYatesShuffleWithSeed(array, seed) {
     const shuffled = [...array];
     const random = seededRandom(seed);
@@ -47,10 +117,15 @@ function fisherYatesShuffleWithSeed(array, seed) {
     return shuffled;
 }
 
+/**
+ * 制約付きシャッフル (同じ機能が連続しないように)
+ * @param {Question[]} questions - 質問配列
+ * @param {number} seed - シード値
+ * @returns {{shuffled: Question[], seed: number}} シャッフル結果とシード
+ */
 function shuffleQuestionsWithConstraints(questions, seed) {
-    const maxAttempts = 5000; // 1000 → 5000に増やす
-    
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    // 2連続禁止
+    for (let attempt = 0; attempt < CONFIG.SHUFFLE_MAX_ATTEMPTS; attempt++) {
         const currentSeed = seed + attempt;
         const shuffled = fisherYatesShuffleWithSeed(questions, currentSeed);
         
@@ -67,12 +142,11 @@ function shuffleQuestionsWithConstraints(questions, seed) {
         }
     }
     
-    // 5000回試行しても制約を満たせない場合、制約を緩和
-    console.warn(`制約付きシャッフルが${maxAttempts}回で完了しませんでした。制約を緩和します。`);
+    console.warn(`制約付きシャッフルが${CONFIG.SHUFFLE_MAX_ATTEMPTS}回で完了しませんでした。制約を緩和します。`);
     
-    // 制約緩和版: 3連続まで許容
-    for (let attempt = 0; attempt < 1000; attempt++) {
-        const currentSeed = seed + maxAttempts + attempt;
+    // 3連続まで許容
+    for (let attempt = 0; attempt < CONFIG.SHUFFLE_RELAXED_ATTEMPTS; attempt++) {
+        const currentSeed = seed + CONFIG.SHUFFLE_MAX_ATTEMPTS + attempt;
         const shuffled = fisherYatesShuffleWithSeed(questions, currentSeed);
         
         let hasTripleConsecutive = false;
@@ -85,12 +159,11 @@ function shuffleQuestionsWithConstraints(questions, seed) {
         }
         
         if (!hasTripleConsecutive) {
-            console.info('制約緩和版シャッフル成功（3連続まで許容）');
+            console.info('制約緩和版シャッフル成功(3連続まで許容)');
             return { shuffled, seed: currentSeed };
         }
     }
     
-    // それでもダメなら諦めて普通にシャッフル
     console.warn('制約なしシャッフルを使用します');
     return { shuffled: fisherYatesShuffleWithSeed(questions, seed), seed };
 }
@@ -99,6 +172,12 @@ function shuffleQuestionsWithConstraints(questions, seed) {
 // ビジネスロジック
 // ============================================
 
+/**
+ * 機能スコアを再計算
+ * @param {DiagnosisState} state - 診断状態
+ * @param {Question[]} questions - 質問配列
+ * @returns {Object<string, number>} 機能スコア
+ */
 function recalculateFunctionScores(state, questions) {
     const scores = {
         Ni: 0, Ne: 0, Si: 0, Se: 0,
@@ -120,7 +199,15 @@ function recalculateFunctionScores(state, questions) {
     return scores;
 }
 
+/**
+ * 暫定タイプを取得
+ * @param {DiagnosisState} state - 診断状態
+ * @param {Question[]} questions - 質問配列
+ * @returns {string} MBTI タイプ
+ */
 function getProvisionalType(state, questions) {
+    if (!appContext) return 'INTJ';
+    
     const answeredCount = Object.keys(state.answers).length;
     
     if (answeredCount === 0) {
@@ -128,17 +215,29 @@ function getProvisionalType(state, questions) {
     }
     
     const currentScores = recalculateFunctionScores(state, questions);
-    
-    // 矛盾検出はまだ行わない（暫定タイプ取得のみ）
-    const result = determineMBTITypeWithConsistency(currentScores, COGNITIVE_STACKS, state.answers, questions);
+    const result = determineMBTITypeWithConsistency(
+        currentScores, 
+        appContext.cognitiveStacks, 
+        state.answers, 
+        questions
+    );
     return result.type;
 }
 
+/**
+ * 各選択肢の影響を計算
+ * @param {Question} question - 質問
+ * @param {DiagnosisState} state - 診断状態
+ * @param {Question[]} questions - 質問配列
+ * @returns {Array<Object>} 影響データ配列
+ */
 function calculateOptionImpacts(question, state, questions) {
+    if (!appContext) return [];
+    
     const funcType = question.function;
     const isReverse = question.reverse || false;
     const provisionalType = getProvisionalType(state, questions);
-    const stack = COGNITIVE_STACKS[provisionalType];
+    const stack = appContext.cognitiveStacks[provisionalType];
     const weights = [4.0, 2.0, 1.0, 0.5];
     
     const currentScores = recalculateFunctionScores(state, questions);
@@ -190,8 +289,9 @@ function calculateOptionImpacts(question, state, questions) {
 // UI Effects
 // ============================================
 
-let hasSeenShadowExplanation = false;
-
+/**
+ * Shadow機能の説明を表示
+ */
 function showShadowExplanation() {
     const tooltip = document.createElement('div');
     tooltip.className = 'shadow-explanation';
@@ -228,6 +328,11 @@ function showShadowExplanation() {
     }, 5000);
 }
 
+/**
+ * 復元通知を表示
+ * @param {DiagnosisState} state - 診断状態
+ * @param {Question[]} questions - 質問配列
+ */
 function showRestoreNotification(state, questions) {
     const notification = document.createElement('div');
     notification.className = 'restore-notification';
@@ -243,9 +348,12 @@ function showRestoreNotification(state, questions) {
     setTimeout(() => {
         notification.classList.add('fade-out');
         setTimeout(() => notification.remove(), 300);
-    }, 3000);
+    }, CONFIG.NOTIFICATION_DURATION);
 }
 
+/**
+ * 初期フォーカスを設定
+ */
 function setInitialFocus() {
     setTimeout(() => {
         const selectedOption = document.querySelector('.option[aria-checked="true"]');
@@ -265,11 +373,20 @@ function setInitialFocus() {
 // レンダリング
 // ============================================
 
+/**
+ * 進捗セクションを更新
+ * @param {DiagnosisState} state - 診断状態
+ * @param {Question[]} questions - 質問配列
+ */
 function updateProgressSection(state, questions) {
+    if (!appContext) return;
+    
     const provisionalType = getProvisionalType(state, questions);
     const currentScores = recalculateFunctionScores(state, questions);
     
     const progressSection = document.getElementById('progress-section');
+    if (!progressSection) return;
+    
     const previousType = progressSection.dataset.currentType;
     const wasOpen = document.getElementById('scores-list')?.classList.contains('open');
     
@@ -277,8 +394,8 @@ function updateProgressSection(state, questions) {
         progressSection.innerHTML = ProgressSection.render(
             state,
             provisionalType,
-            mbtiDescriptions,
-            COGNITIVE_STACKS,
+            appContext.mbtiDescriptions,
+            appContext.cognitiveStacks,
             getNormalizedScore,
             questions,
             currentScores
@@ -286,7 +403,6 @@ function updateProgressSection(state, questions) {
         progressSection.dataset.initialized = 'true';
         progressSection.dataset.currentType = provisionalType;
         
-        // タイプが変わっても開閉状態を復元
         if (wasOpen) {
             const scoresList = document.getElementById('scores-list');
             const toggleText = document.getElementById('toggle-text');
@@ -321,18 +437,24 @@ function updateProgressSection(state, questions) {
         const isInitialState = answeredCount === 0;
         progressNote.innerHTML = isInitialState 
             ? '<div style="font-size:11px;color:#94a3b8;margin-top:4px;opacity:0.7;">※便宜上の仮値です</div>'
-            : (answeredCount < 8 
+            : (answeredCount < CONFIG.MIN_RELIABLE_ANSWERS
                 ? '<div style="font-size:11px;color:#fbbf24;margin-top:4px;">⚠ 回答数が少ないため精度が低い可能性があります</div>'
                 : '');
     }
     
-    // スコアリストを常に更新（開いていなくても）
     updateScoresList(state, questions);
 }
 
+/**
+ * スコアリストを更新
+ * @param {DiagnosisState} state - 診断状態
+ * @param {Question[]} questions - 質問配列
+ */
 function updateScoresList(state, questions) {
+    if (!appContext) return;
+    
     const provisionalType = getProvisionalType(state, questions);
-    const stack = COGNITIVE_STACKS[provisionalType];
+    const stack = appContext.cognitiveStacks[provisionalType];
     const allFunctions = ['Ni', 'Ne', 'Si', 'Se', 'Ti', 'Te', 'Fi', 'Fe'];
     const currentScores = recalculateFunctionScores(state, questions);
     const orderedFunctions = [...stack, ...allFunctions.filter(f => !stack.includes(f))];
@@ -344,19 +466,24 @@ function updateScoresList(state, questions) {
         if (valueEl) {
             const currentDisplayValue = parseInt(valueEl.textContent);
             
-            // 値が変わった場合のみアニメーション
             if (currentDisplayValue !== normalizedValue) {
                 valueEl.textContent = normalizedValue;
                 valueEl.style.animation = 'none';
-                // アニメーションをリセットして再適用
-                void valueEl.offsetWidth; // リフロー強制
+                void valueEl.offsetWidth;
                 valueEl.style.animation = 'scoreUpdate 0.3s ease';
             }
         }
     });
 }
 
+/**
+ * 質問をレンダリング
+ * @param {DiagnosisState} state - 診断状態
+ * @param {Question[]} questions - 質問配列
+ */
 function renderQuestion(state, questions) {
+    if (!appContext) return;
+    
     const question = questions[state.currentQuestion];
     const savedAnswer = state.answers[question.id];
     const currentValue = savedAnswer ? savedAnswer.value : undefined;
@@ -367,6 +494,8 @@ function renderQuestion(state, questions) {
     updateProgressSection(state, questions);
     
     const questionContent = document.getElementById('question-content');
+    if (!questionContent) return;
+    
     questionContent.innerHTML = QuestionCard.render(
         question,
         impacts,
@@ -388,45 +517,60 @@ function renderQuestion(state, questions) {
     const backBtn = document.getElementById('btn-back');
     const nextBtn = document.getElementById('btn-next');
     
-    backBtn.style.display = state.currentQuestion > 0 ? 'block' : 'none';
+    if (backBtn) {
+        backBtn.style.display = state.currentQuestion > 0 ? 'block' : 'none';
+    }
     
     const hasAnswer = state.answers[question.id];
     const isLastQuestion = state.currentQuestion >= questions.length - 1;
-    nextBtn.style.display = hasAnswer && !isLastQuestion ? 'block' : 'none';
+    if (nextBtn) {
+        nextBtn.style.display = hasAnswer && !isLastQuestion ? 'block' : 'none';
+    }
     
     if (isShadow && !hasSeenShadowExplanation) {
         hasSeenShadowExplanation = true;
-        setTimeout(() => showShadowExplanation(), 500);
+        setTimeout(() => showShadowExplanation(), CONFIG.SHADOW_EXPLANATION_DELAY);
     }
 }
 
+/**
+ * 結果をレンダリング
+ * @param {DiagnosisState} state - 診断状態
+ */
 function renderResult(state) {
-    // 矛盾検出を含む完全な診断結果を取得
+    if (!appContext) return;
+    
     const result = determineMBTITypeWithConsistency(
         state.functionScores, 
-        COGNITIVE_STACKS,
+        appContext.cognitiveStacks,
         state.answers,
-        questions
+        appContext.questions
     );
     
     const questionScreen = document.getElementById('question-screen');
     const resultScreen = document.getElementById('result-screen');
     
-    questionScreen.style.display = 'none';
-    resultScreen.style.display = 'block';
-    resultScreen.className = 'result-screen active';
-    
-    // FUNCTIONSを渡す
-    resultScreen.innerHTML = ResultCard.render(
-        result,
-        mbtiDescriptions,
-        COGNITIVE_STACKS,
-        FUNCTIONS,  // ← これが渡されているか確認
-        getNormalizedScore,
-        state.functionScores
-    );
+    if (questionScreen && resultScreen) {
+        questionScreen.style.display = 'none';
+        resultScreen.style.display = 'block';
+        resultScreen.className = 'result-screen active';
+        
+        resultScreen.innerHTML = ResultCard.render(
+            result,
+            appContext.mbtiDescriptions,
+            appContext.cognitiveStacks,
+            FUNCTIONS,
+            getNormalizedScore,
+            state.functionScores
+        );
+    }
 }
 
+/**
+ * メインレンダリング関数
+ * @param {DiagnosisState} state - 診断状態
+ * @param {Question[]} questions - 質問配列
+ */
 function render(state, questions) {
     if (state.showResult) {
         renderResult(state);
@@ -439,79 +583,162 @@ function render(state, questions) {
 // イベントハンドラーのラッパー
 // ============================================
 
+/**
+ * オプションクリックハンドラー
+ * @param {MouseEvent} event - クリックイベント
+ */
 function handleOptionClick(event) {
+    if (!appContext) return;
+    
     const button = event.target.closest('.option');
     if (!button) return;
     
     const value = parseInt(button.dataset.value);
     if (!isNaN(value)) {
-        handlers.handleAnswer(value, { currentTarget: button });
+        appContext.handlers.handleAnswer(value, { currentTarget: button });
     }
 }
 
+/**
+ * オプションキーボードハンドラー
+ * @param {KeyboardEvent} event - キーボードイベント
+ */
 function handleOptionKeydown(event) {
+    if (!appContext) return;
+    
     const button = event.target.closest('.option');
     if (!button) return;
     
     const value = parseInt(button.dataset.value);
     if (!isNaN(value)) {
-        handlers.handleKeyboardNav(event, value);
+        appContext.handlers.handleKeyboardNav(event, value);
     }
 }
 
+/**
+ * スコアトグル関数 (グローバル公開用)
+ */
 window.toggleScores = function() {
+    const button = document.querySelector('.scores-toggle-btn');
     const list = document.getElementById('scores-list');
     const text = document.getElementById('toggle-text');
     const icon = document.getElementById('toggle-icon');
     
-    if (list.classList.contains('open')) {
-        list.classList.remove('open');
-        text.textContent = 'スコア詳細を表示';
-        icon.textContent = '▼';
-    } else {
-        list.classList.add('open');
-        const state = diagnosisState.getState();
-        updateScoresList(state, questions);
-        text.textContent = 'スコア詳細を非表示';
-        icon.textContent = '▲';
+    if (!list) return;
+    
+    const isOpen = list.classList.contains('open');
+    
+    list.classList.toggle('open');
+    
+    if (button) {
+        button.setAttribute('aria-expanded', String(!isOpen));
+    }
+    
+    if (text) {
+        text.textContent = isOpen ? 'スコア詳細を表示' : 'スコア詳細を非表示';
+    }
+    
+    if (icon) {
+        icon.textContent = isOpen ? '▼' : '▲';
+    }
+    
+    if (!isOpen && appContext) {
+        const state = appContext.diagnosisState.getState();
+        updateScoresList(state, appContext.questions);
     }
 };
+
+// ============================================
+// エラーハンドリング
+// ============================================
+
+/**
+ * エラー画面を表示
+ * @param {Error} error - エラーオブジェクト
+ * @param {string} message - ユーザー向けメッセージ
+ */
+function showErrorScreen(error, message) {
+    console.error('Application Error:', error);
+    
+    const errorDiv = document.getElementById('question-content');
+    if (errorDiv) {
+        errorDiv.innerHTML = `
+            <div style="text-align:center;padding:40px;color:#ef4444;">
+                <h3>エラーが発生しました</h3>
+                <p style="margin: 16px 0; color: #cbd5e1;">${message}</p>
+                <details style="margin: 20px 0; text-align: left; max-width: 500px; margin-left: auto; margin-right: auto;">
+                    <summary style="cursor: pointer; color: #94a3b8;">詳細情報</summary>
+                    <pre style="background: #1a2332; padding: 12px; border-radius: 8px; overflow-x: auto; font-size: 12px; margin-top: 8px;">${error.stack || error.message}</pre>
+                </details>
+                <button onclick="location.reload()" style="margin-top:20px;padding:12px 24px;background:#60a5fa;color:#021426;border:none;border-radius:8px;font-weight:700;cursor:pointer;">
+                    再読み込み
+                </button>
+            </div>
+        `;
+    }
+}
+
+/**
+ * ローディング画面を表示
+ */
+function showLoadingScreen() {
+    const loadingDiv = document.getElementById('question-content');
+    if (loadingDiv) {
+        loadingDiv.innerHTML = `
+            <div style="text-align:center;padding:40px;">
+                <div style="width:40px;height:40px;border:4px solid #1a2332;border-top-color:#60a5fa;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 16px;"></div>
+                <div style="color:#94a3b8;">読み込み中...</div>
+            </div>
+            <style>
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+            </style>
+        `;
+    }
+}
 
 // ============================================
 // アプリケーション初期化
 // ============================================
 
-window.onload = async function() {
+/**
+ * アプリケーションを初期化
+ * @returns {Promise<void>}
+ */
+async function initializeApplication() {
+    showLoadingScreen();
+    
     try {
-        // ローディング表示
-        const loadingDiv = document.getElementById('question-content');
-        if (loadingDiv) {
-            loadingDiv.innerHTML = '<div style="text-align:center;padding:40px;">読み込み中...</div>';
-        }
-        
         // データ読み込み
-        const data = await initializeData('simple'); // または 'detailed'
-        questions = data.questions;
-        COGNITIVE_STACKS = data.cognitiveStacks;
-        mbtiDescriptions = data.mbtiDescriptions;
+        const data = await initializeData('simple');
         
-        if (questions.length === 0) {
-            throw new Error('質問データが読み込まれませんでした');
+        if (!data.questions || data.questions.length === 0) {
+            throw new Error(ERROR_MESSAGES.NO_QUESTIONS);
         }
         
         // ストレージ初期化
-        storage = useLocalStorage();
+        const storage = useLocalStorage();
         
-        // シャッフルシードの取得・保存
+        // シャッフル
         let shuffleSeed = storage.shuffleSeed.get();
         const { shuffled: shuffledQuestions, seed: usedSeed } = 
-            shuffleQuestionsWithConstraints(questions, shuffleSeed);
+            shuffleQuestionsWithConstraints(data.questions, shuffleSeed);
         storage.shuffleSeed.set(usedSeed);
-        questions = shuffledQuestions;
         
         // 状態管理初期化
-        diagnosisState = useDiagnosisState(questions);
-        handlers = useHandlers(diagnosisState, questions, calculateScore, storage);
+        const diagnosisState = useDiagnosisState(shuffledQuestions);
+        const handlers = useHandlers(diagnosisState, shuffledQuestions, calculateScore, storage);
+        
+        // アプリケーションコンテキスト設定
+        appContext = {
+            questions: shuffledQuestions,
+            cognitiveStacks: data.cognitiveStacks,
+            mbtiDescriptions: data.mbtiDescriptions,
+            diagnosisState,
+            handlers,
+            storage
+        };
         
         // Shadow説明の表示履歴チェック
         hasSeenShadowExplanation = storage.shadowSeen.get();
@@ -519,7 +746,7 @@ window.onload = async function() {
         // 状態監視
         diagnosisState.subscribe((state) => {
             storage.saveState(state);
-            render(state, questions);
+            render(state, appContext.questions);
         });
         
         // 保存状態の復元
@@ -537,26 +764,27 @@ window.onload = async function() {
         
         // 初回レンダリング
         const state = diagnosisState.getState();
-        render(state, questions);
+        render(state, appContext.questions);
         
         // 復元通知
         if (savedState && state.currentQuestion > 0) {
-            showRestoreNotification(state, questions);
+            showRestoreNotification(state, appContext.questions);
         }
         
     } catch (error) {
-        console.error('アプリケーションの初期化に失敗:', error);
-        const errorDiv = document.getElementById('question-content');
-        if (errorDiv) {
-            errorDiv.innerHTML = `
-                <div style="text-align:center;padding:40px;color:#ef4444;">
-                    <h3>エラーが発生しました</h3>
-                    <p>${error.message}</p>
-                    <button onclick="location.reload()" style="margin-top:20px;padding:10px 20px;">
-                        再読み込み
-                    </button>
-                </div>
-            `;
+        // エラー種別に応じた処理
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+            showErrorScreen(error, ERROR_MESSAGES.NETWORK_ERROR);
+        } else if (error instanceof SyntaxError) {
+            showErrorScreen(error, ERROR_MESSAGES.JSON_PARSE_ERROR);
+        } else {
+            showErrorScreen(error, error.message || ERROR_MESSAGES.INIT_FAILED);
         }
     }
-};
+}
+
+// ============================================
+// エントリーポイント
+// ============================================
+
+window.onload = initializeApplication;

@@ -1,28 +1,81 @@
 // ============================================
-// data.js - JSON Data Loader
+// data.js - JSON Data Loader (リファクタ版)
 // ============================================
 
-// 注意: FUNCTIONSはcore.jsで定義されています
-// 重複を避けるため、ここでは定義しません
+// ============================================
+// 型定義 (JSDoc)
+// ============================================
+
+/**
+ * @typedef {Object} Question
+ * @property {string} id - 質問ID
+ * @property {string} text - 質問文
+ * @property {string} function - 認知機能
+ * @property {boolean} [reverse] - 逆転項目フラグ
+ * @property {number} priority - 優先度
+ * @property {string[]} tags - タグ
+ * @property {Object} [related] - 関連情報
+ */
+
+/**
+ * @typedef {Object} MBTIConfig
+ * @property {Object<string, string[]>} cognitiveStacks - 認知スタック定義
+ * @property {Object<string, {name: string, description: string}>} mbtiDescriptions - MBTI説明
+ */
+
+/**
+ * @typedef {Object} InitializedData
+ * @property {Question[]} questions - 質問配列
+ * @property {Object<string, string[]>} cognitiveStacks - 認知スタック
+ * @property {Object<string, {name: string, description: string}>} mbtiDescriptions - MBTI説明
+ */
+
+// ============================================
+// 定数定義
+// ============================================
+
+const VALID_MODES = ['simple', 'detailed'];
+const DEFAULT_MODE = 'simple';
+
+const DATA_PATHS = {
+    QUESTIONS: (mode) => `data/questions-${mode}.json`,
+    CONFIG: 'data/mbti-config.json'
+};
+
+const ERROR_MESSAGES = {
+    INVALID_MODE: (mode) => `Invalid mode: ${mode}. Valid modes are: ${VALID_MODES.join(', ')}`,
+    FETCH_FAILED: (path, status) => `Failed to load ${path}: HTTP ${status}`,
+    JSON_PARSE_FAILED: (path) => `Failed to parse JSON from ${path}`,
+    NO_QUESTIONS: (mode) => `No questions found in ${mode} mode data`,
+    NETWORK_ERROR: (path) => `Network error loading ${path}`
+};
 
 // ============================================
 // モード管理
 // ============================================
 
-let currentMode = 'simple';
+let currentMode = DEFAULT_MODE;
 let cachedQuestions = null;
 let cachedConfig = null;
 
+/**
+ * モードを設定
+ * @param {string} mode - 'simple' または 'detailed'
+ */
 export function setMode(mode) {
-    if (mode !== 'simple' && mode !== 'detailed') {
-        console.warn(`Invalid mode: ${mode}. Using 'simple' instead.`);
-        currentMode = 'simple';
+    if (!VALID_MODES.includes(mode)) {
+        console.warn(ERROR_MESSAGES.INVALID_MODE(mode));
+        currentMode = DEFAULT_MODE;
         return;
     }
     currentMode = mode;
     cachedQuestions = null; // キャッシュクリア
 }
 
+/**
+ * 現在のモードを取得
+ * @returns {string} 現在のモード
+ */
 export function getMode() {
     return currentMode;
 }
@@ -32,44 +85,87 @@ export function getMode() {
 // ============================================
 
 /**
+ * JSONファイルを安全に読み込む
+ * @param {string} url - 読み込むURL
+ * @returns {Promise<any>} パース済みJSON
+ * @throws {Error} 読み込みまたはパースに失敗した場合
+ */
+async function fetchJSON(url) {
+    try {
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            throw new Error(ERROR_MESSAGES.FETCH_FAILED(url, response.status));
+        }
+        
+        const data = await response.json();
+        return data;
+        
+    } catch (error) {
+        if (error instanceof SyntaxError) {
+            throw new Error(ERROR_MESSAGES.JSON_PARSE_FAILED(url));
+        }
+        if (error instanceof TypeError) {
+            throw new Error(ERROR_MESSAGES.NETWORK_ERROR(url));
+        }
+        throw error;
+    }
+}
+
+/**
  * 質問データを読み込む
- * @param {string} mode - 'simple' or 'detailed'
- * @returns {Promise<Array>} 質問配列
+ * @param {string} [mode] - 'simple' または 'detailed'
+ * @returns {Promise<Question[]>} 質問配列
  */
 export async function loadQuestions(mode = currentMode) {
+    const path = DATA_PATHS.QUESTIONS(mode);
+    
     try {
-        const response = await fetch(`data/questions-${mode}.json`);
-        if (!response.ok) {
-            throw new Error(`Failed to load questions-${mode}.json: ${response.status}`);
+        const data = await fetchJSON(path);
+        
+        if (!data.questions || !Array.isArray(data.questions)) {
+            throw new Error(ERROR_MESSAGES.NO_QUESTIONS(mode));
         }
-        const data = await response.json();
+        
         return data.questions;
+        
     } catch (error) {
-        console.error('質問データの読み込みに失敗:', error);
-        return [];
+        console.error(`[Data] 質問データの読み込みに失敗 (${mode}):`, error);
+        throw error;
     }
 }
 
 /**
  * MBTI設定を読み込む
- * @returns {Promise<Object>} { cognitiveStacks, mbtiDescriptions }
+ * @returns {Promise<MBTIConfig>} MBTI設定
  */
 export async function loadMBTIConfig() {
-    if (cachedConfig) return cachedConfig;
+    if (cachedConfig) {
+        return cachedConfig;
+    }
     
     try {
-        const response = await fetch('data/mbti-config.json');
-        if (!response.ok) {
-            throw new Error(`Failed to load mbti-config.json: ${response.status}`);
+        const config = await fetchJSON(DATA_PATHS.CONFIG);
+        
+        // 必須フィールドの検証
+        if (!config.cognitiveStacks || !config.mbtiDescriptions) {
+            throw new Error('Invalid MBTI config format');
         }
-        cachedConfig = await response.json();
-        return cachedConfig;
+        
+        cachedConfig = config;
+        return config;
+        
     } catch (error) {
-        console.error('MBTI設定の読み込みに失敗:', error);
-        return {
+        console.error('[Data] MBTI設定の読み込みに失敗:', error);
+        console.warn('[Data] デフォルト設定を使用します');
+        
+        // フォールバック
+        const fallback = {
             cognitiveStacks: getDefaultCognitiveStacks(),
             mbtiDescriptions: getDefaultMBTIDescriptions()
         };
+        cachedConfig = fallback;
+        return fallback;
     }
 }
 
@@ -79,10 +175,13 @@ export async function loadMBTIConfig() {
 
 /**
  * 質問データを取得（同期的）
- * 注意: 初回は空配列を返す可能性があります
+ * @deprecated 初回は空配列を返す可能性があります。initializeData()を使用してください。
+ * @param {string} [mode] - モード
+ * @returns {Question[]} 質問配列
  */
 export function getQuestionsByMode(mode = currentMode) {
     if (!cachedQuestions) {
+        console.warn('[Data] 質問データが未読み込みです。initializeData()を先に呼び出してください。');
         loadQuestions(mode).then(data => {
             cachedQuestions = data;
         });
@@ -100,28 +199,43 @@ export const questions = [];
 
 /**
  * データを事前読み込み
- * app.js の起動時に呼び出すことを推奨
+ * @param {string} [mode] - 'simple' または 'detailed'
+ * @returns {Promise<InitializedData>} 初期化されたデータ
  */
-export async function initializeData(mode = 'simple') {
-    const [questionsData, configData] = await Promise.all([
-        loadQuestions(mode),
-        loadMBTIConfig()
-    ]);
-    
-    cachedQuestions = questionsData;
-    cachedConfig = configData;
-    
-    return {
-        questions: questionsData,
-        cognitiveStacks: configData.cognitiveStacks,
-        mbtiDescriptions: configData.mbtiDescriptions
-    };
+export async function initializeData(mode = DEFAULT_MODE) {
+    try {
+        // 並行読み込み
+        const [questionsData, configData] = await Promise.all([
+            loadQuestions(mode),
+            loadMBTIConfig()
+        ]);
+        
+        // キャッシュ更新
+        cachedQuestions = questionsData;
+        cachedConfig = configData;
+        
+        console.info(`[Data] データ初期化完了 (mode: ${mode}, questions: ${questionsData.length})`);
+        
+        return {
+            questions: questionsData,
+            cognitiveStacks: configData.cognitiveStacks,
+            mbtiDescriptions: configData.mbtiDescriptions
+        };
+        
+    } catch (error) {
+        console.error('[Data] データ初期化に失敗:', error);
+        throw error;
+    }
 }
 
 // ============================================
 // フォールバック用デフォルト値
 // ============================================
 
+/**
+ * デフォルトの認知スタック定義を取得
+ * @returns {Object<string, string[]>} 認知スタック
+ */
 function getDefaultCognitiveStacks() {
     return {
         INTJ: ['Ni', 'Te', 'Fi', 'Se'],
@@ -143,6 +257,10 @@ function getDefaultCognitiveStacks() {
     };
 }
 
+/**
+ * デフォルトのMBTI説明を取得
+ * @returns {Object<string, {name: string, description: string}>} MBTI説明
+ */
 function getDefaultMBTIDescriptions() {
     return {
         INTJ: { name: "建築家", description: "戦略的思考と革新的な洞察力を持つ完璧主義者。" },
@@ -161,5 +279,51 @@ function getDefaultMBTIDescriptions() {
         ISFP: { name: "冒険家", description: "柔軟で芸術的な探求者。" },
         ESTP: { name: "起業家", description: "大胆で行動的な実践家。" },
         ESFP: { name: "エンターテイナー", description: "陽気で社交的なパフォーマー。" }
+    };
+}
+
+// ============================================
+// バリデーション
+// ============================================
+
+/**
+ * 質問データの妥当性を検証
+ * @param {Question[]} questions - 質問配列
+ * @returns {{isValid: boolean, errors: string[]}} 検証結果
+ */
+export function validateQuestions(questions) {
+    const errors = [];
+    
+    if (!Array.isArray(questions)) {
+        errors.push('questions must be an array');
+        return { isValid: false, errors };
+    }
+    
+    const requiredFields = ['id', 'text', 'function'];
+    const validFunctions = ['Ni', 'Ne', 'Si', 'Se', 'Ti', 'Te', 'Fi', 'Fe'];
+    
+    questions.forEach((q, index) => {
+        // 必須フィールドチェック
+        requiredFields.forEach(field => {
+            if (!(field in q)) {
+                errors.push(`Question ${index}: missing required field '${field}'`);
+            }
+        });
+        
+        // 機能タイプの妥当性チェック
+        if (q.function && !validFunctions.includes(q.function)) {
+            errors.push(`Question ${index}: invalid function '${q.function}'`);
+        }
+        
+        // IDの重複チェック
+        const duplicates = questions.filter(other => other.id === q.id);
+        if (duplicates.length > 1) {
+            errors.push(`Question ${index}: duplicate ID '${q.id}'`);
+        }
+    });
+    
+    return {
+        isValid: errors.length === 0,
+        errors
     };
 }
