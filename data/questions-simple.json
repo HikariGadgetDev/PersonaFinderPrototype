@@ -1,8 +1,9 @@
 {
   "version": "1.0",
   "mode": "simple",
-  "totalQuestions": 64,
-  "questionsPerFunction": 8,
+  "totalQuestions": 32,
+  "questionsPerFunction": 4,
+  "description": "クイック診断用。各認知機能を最もよく表す4問を厳選。",
   "questions": [
     {
       "id": "ni_01",
@@ -14,22 +15,6 @@
     },
     {
       "id": "ni_02",
-      "text": "バラバラな情報から、一つの明確な結論が自然と浮かび上がってくる",
-      "function": "Ni",
-      "reverse": false,
-      "priority": 1,
-      "tags": ["convergence", "synthesis"]
-    },
-    {
-      "id": "ni_03",
-      "text": "今の選択が10年後にどう影響するか、映像として見える",
-      "function": "Ni",
-      "reverse": false,
-      "priority": 2,
-      "tags": ["future", "vision"]
-    },
-    {
-      "id": "ni_04",
       "text": "遠い未来の目標から逆算して、今すべきことを決める",
       "function": "Ni",
       "reverse": false,
@@ -37,41 +22,25 @@
       "tags": ["planning", "long-term"]
     },
     {
-      "id": "ni_05",
-      "text": "一つのテーマを深く掘り下げることに、時間を忘れて熱中する",
-      "function": "Ni",
-      "reverse": false,
-      "priority": 3,
-      "tags": ["focus", "depth"]
-    },
-    {
-      "id": "ni_06",
-      "text": "説明できないけれど「これが答えだ」という確信を持つことがある",
-      "function": "Ni",
-      "reverse": false,
-      "priority": 1,
-      "tags": ["intuition", "certainty"]
-    },
-    {
-      "id": "ni_07",
+      "id": "ni_03",
       "text": "抽象的な解釈より、具体的な事実の積み重ねの方が信頼できる",
       "function": "Ni",
       "reverse": true,
       "priority": 2,
       "tags": ["concrete", "facts"],
       "related": {
-        "contradicts": ["ni_01", "ni_02"]
+        "contradicts": ["ni_01"]
       }
     },
     {
-      "id": "ni_08",
+      "id": "ni_04",
       "text": "過去や未来より、今目の前のことに意識を向けている時間が長い",
       "function": "Ni",
       "reverse": true,
       "priority": 2,
       "tags": ["present", "immediate"],
       "related": {
-        "contradicts": ["ni_03", "ni_04"]
+        "contradicts": ["ni_02"]
       }
     },
     {
@@ -84,14 +53,6 @@
     },
     {
       "id": "ne_02",
-      "text": "「もしこうだったら？」と想像を広げるのが楽しい",
-      "function": "Ne",
-      "reverse": false,
-      "priority": 1,
-      "tags": ["possibilities", "imagination"]
-    },
-    {
-      "id": "ne_03",
       "text": "確立されたやり方より、試したことのない方法に惹かれる",
       "function": "Ne",
       "reverse": false,
@@ -99,61 +60,29 @@
       "tags": ["novelty", "experimentation"]
     },
     {
-      "id": "ne_04",
-      "text": "全く関係なさそうな2つのことを、結びつけて考えるのが得意",
-      "function": "Ne",
-      "reverse": false,
-      "priority": 1,
-      "tags": ["connection", "association"]
-    },
-    {
-      "id": "ne_05",
-      "text": "選択肢を絞り込むより、できるだけ多く残しておきたい",
-      "function": "Ne",
-      "reverse": false,
-      "priority": 3,
-      "tags": ["options", "flexibility"]
-    },
-    {
-      "id": "ne_06",
-      "text": "話しているうちに、最初と全然違うテーマになっていることがよくある",
-      "function": "Ne",
-      "reverse": false,
-      "priority": 3,
-      "tags": ["tangent", "exploration"]
-    },
-    {
-      "id": "ne_07",
+      "id": "ne_03",
       "text": "色々試すより、一つの方法を深く追求する方が成果が出る",
       "function": "Ne",
       "reverse": true,
       "priority": 2,
       "tags": ["depth", "consistency"],
       "related": {
-        "contradicts": ["ne_01", "ne_03"]
+        "contradicts": ["ne_01", "ne_02"]
       }
     },
     {
-      "id": "ne_08",
+      "id": "ne_04",
       "text": "新しい挑戦より、慣れた方法で着実に進める方が安心できる",
       "function": "Ne",
       "reverse": true,
       "priority": 2,
       "tags": ["routine", "stability"],
       "related": {
-        "contradicts": ["ne_02", "ne_03"]
+        "contradicts": ["ne_02"]
       }
     },
     {
       "id": "si_01",
-      "text": "過去の出来事を、その時の匂いや温度まで鮮明に思い出せる",
-      "function": "Si",
-      "reverse": false,
-      "priority": 2,
-      "tags": ["memory", "sensory"]
-    },
-    {
-      "id": "si_02",
       "text": "「前にこれと同じ状況があった」と、過去の記憶がすぐ浮かぶ",
       "function": "Si",
       "reverse": false,
@@ -161,15 +90,7 @@
       "tags": ["recall", "pattern"]
     },
     {
-      "id": "si_03",
-      "text": "「以前これでうまくいった」という経験を判断の基準にする",
-      "function": "Si",
-      "reverse": false,
-      "priority": 1,
-      "tags": ["experience", "reference"]
-    },
-    {
-      "id": "si_04",
+      "id": "si_02",
       "text": "実績のある方法の方が、未知の方法より安心できる",
       "function": "Si",
       "reverse": false,
@@ -177,41 +98,25 @@
       "tags": ["proven", "safety"]
     },
     {
-      "id": "si_05",
-      "text": "毎日同じ手順で物事を進めると、調子が良い",
-      "function": "Si",
-      "reverse": false,
-      "priority": 2,
-      "tags": ["routine", "consistency"]
-    },
-    {
-      "id": "si_06",
-      "text": "いつもと微妙に違うことに、すぐ気づく",
-      "function": "Si",
-      "reverse": false,
-      "priority": 3,
-      "tags": ["detail", "awareness"]
-    },
-    {
-      "id": "si_07",
+      "id": "si_03",
       "text": "過去の成功例より、新しい可能性を試す方にワクワクする",
       "function": "Si",
       "reverse": true,
       "priority": 2,
       "tags": ["novelty", "exploration"],
       "related": {
-        "contradicts": ["si_03", "si_04"]
+        "contradicts": ["si_01", "si_02"]
       }
     },
     {
-      "id": "si_08",
+      "id": "si_04",
       "text": "同じやり方を繰り返すより、毎回違うアプローチを取りたい",
       "function": "Si",
       "reverse": true,
       "priority": 2,
       "tags": ["variety", "change"],
       "related": {
-        "contradicts": ["si_05"]
+        "contradicts": ["si_02"]
       }
     },
     {
@@ -224,30 +129,6 @@
     },
     {
       "id": "se_02",
-      "text": "「今、ここ」の体験を存分に味わうことに喜びを感じる",
-      "function": "Se",
-      "reverse": false,
-      "priority": 1,
-      "tags": ["experience", "enjoyment"]
-    },
-    {
-      "id": "se_03",
-      "text": "部屋に入った瞬間、誰がどこにいるか把握できる",
-      "function": "Se",
-      "reverse": false,
-      "priority": 2,
-      "tags": ["awareness", "spatial"]
-    },
-    {
-      "id": "se_04",
-      "text": "周囲の音、光、動きなどの変化にすぐ気づく",
-      "function": "Se",
-      "reverse": false,
-      "priority": 2,
-      "tags": ["sensory", "alert"]
-    },
-    {
-      "id": "se_05",
       "text": "説明を読むより、実際に触って動かして覚える方が早い",
       "function": "Se",
       "reverse": false,
@@ -255,33 +136,25 @@
       "tags": ["kinesthetic", "practical"]
     },
     {
-      "id": "se_06",
-      "text": "予期しないトラブルが起きても、その場で判断して動ける",
-      "function": "Se",
-      "reverse": false,
-      "priority": 3,
-      "tags": ["adaptable", "responsive"]
-    },
-    {
-      "id": "se_07",
+      "id": "se_03",
       "text": "即興で動くより、じっくり計画を練る方が成果が出る",
       "function": "Se",
       "reverse": true,
       "priority": 2,
       "tags": ["planning", "deliberate"],
       "related": {
-        "contradicts": ["se_06"]
+        "contradicts": ["se_01"]
       }
     },
     {
-      "id": "se_08",
+      "id": "se_04",
       "text": "今の楽しさより、将来のために準備する方が重要だと思う",
       "function": "Se",
       "reverse": true,
       "priority": 2,
       "tags": ["future", "preparation"],
       "related": {
-        "contradicts": ["se_01", "se_02"]
+        "contradicts": ["se_01"]
       }
     },
     {
@@ -294,14 +167,6 @@
     },
     {
       "id": "ti_02",
-      "text": "「なぜそうなるのか」を突き詰めて考える癖がある",
-      "function": "Ti",
-      "reverse": false,
-      "priority": 1,
-      "tags": ["why", "analysis"]
-    },
-    {
-      "id": "ti_03",
       "text": "複雑な問題を、シンプルな要素に分解して考えるのが得意",
       "function": "Ti",
       "reverse": false,
@@ -309,42 +174,18 @@
       "tags": ["decomposition", "simplification"]
     },
     {
-      "id": "ti_04",
-      "text": "物事の構造や関係性を図式化して整理したくなる",
-      "function": "Ti",
-      "reverse": false,
-      "priority": 2,
-      "tags": ["structure", "visualization"]
-    },
-    {
-      "id": "ti_05",
-      "text": "人の説明を聞いて、「今の話、矛盾している」と気づくことが多い",
-      "function": "Ti",
-      "reverse": false,
-      "priority": 2,
-      "tags": ["logic", "contradiction"]
-    },
-    {
-      "id": "ti_06",
-      "text": "回り道や無駄な手順を見つけると、省略したくなる",
-      "function": "Ti",
-      "reverse": false,
-      "priority": 3,
-      "tags": ["efficiency", "optimization"]
-    },
-    {
-      "id": "ti_07",
+      "id": "ti_03",
       "text": "論理的に正しくても、人を傷つけるなら言わない方が良い",
       "function": "Ti",
       "reverse": true,
       "priority": 2,
       "tags": ["harmony", "empathy"],
       "related": {
-        "contradicts": ["ti_05"]
+        "contradicts": ["ti_01"]
       }
     },
     {
-      "id": "ti_08",
+      "id": "ti_04",
       "text": "理屈より、その場の雰囲気や人の気持ちを優先して判断する",
       "function": "Ti",
       "reverse": true,
@@ -364,30 +205,6 @@
     },
     {
       "id": "te_02",
-      "text": "締め切りから逆算して、スケジュールを組むのが習慣になっている",
-      "function": "Te",
-      "reverse": false,
-      "priority": 2,
-      "tags": ["timeline", "organization"]
-    },
-    {
-      "id": "te_03",
-      "text": "非効率なやり方を見ると、改善案を考えずにいられない",
-      "function": "Te",
-      "reverse": false,
-      "priority": 1,
-      "tags": ["efficiency", "improvement"]
-    },
-    {
-      "id": "te_04",
-      "text": "繰り返し作業は、自動化やテンプレート化して効率を上げたい",
-      "function": "Te",
-      "reverse": false,
-      "priority": 2,
-      "tags": ["automation", "optimization"]
-    },
-    {
-      "id": "te_05",
       "text": "感覚的な判断より、数字やデータに基づいて判断したい",
       "function": "Te",
       "reverse": false,
@@ -395,33 +212,25 @@
       "tags": ["data", "objective"]
     },
     {
-      "id": "te_06",
-      "text": "グループで何かする時、自然と役割分担や進行を仕切っている",
-      "function": "Te",
-      "reverse": false,
-      "priority": 3,
-      "tags": ["leadership", "coordination"]
-    },
-    {
-      "id": "te_07",
+      "id": "te_03",
       "text": "結果より、自分が納得できるプロセスで進める方が大切",
       "function": "Te",
       "reverse": true,
       "priority": 2,
       "tags": ["process", "authenticity"],
       "related": {
-        "contradicts": ["te_03", "te_05"]
+        "contradicts": ["te_02"]
       }
     },
     {
-      "id": "te_08",
+      "id": "te_04",
       "text": "ルールや基準より、状況に応じた柔軟な対応の方が重要",
       "function": "Te",
       "reverse": true,
       "priority": 2,
       "tags": ["flexibility", "adaptability"],
       "related": {
-        "contradicts": ["te_01", "te_02"]
+        "contradicts": ["te_01"]
       }
     },
     {
@@ -434,14 +243,6 @@
     },
     {
       "id": "fi_02",
-      "text": "多数派が賛成していても、自分が納得できなければ反対する",
-      "function": "Fi",
-      "reverse": false,
-      "priority": 1,
-      "tags": ["independence", "integrity"]
-    },
-    {
-      "id": "fi_03",
       "text": "他人にどう見られるかより、自分に正直でいることを選ぶ",
       "function": "Fi",
       "reverse": false,
@@ -449,49 +250,25 @@
       "tags": ["authenticity", "self"]
     },
     {
-      "id": "fi_04",
-      "text": "「本当の自分」と違う振る舞いをすると、強い違和感を覚える",
-      "function": "Fi",
-      "reverse": false,
-      "priority": 2,
-      "tags": ["congruence", "discomfort"]
-    },
-    {
-      "id": "fi_05",
-      "text": "他人が傷ついている姿を見ると、自分の心も痛む",
-      "function": "Fi",
-      "reverse": false,
-      "priority": 2,
-      "tags": ["empathy", "compassion"]
-    },
-    {
-      "id": "fi_06",
-      "text": "損得より、それが正しいことかどうかで判断する",
-      "function": "Fi",
-      "reverse": false,
-      "priority": 1,
-      "tags": ["morality", "principle"]
-    },
-    {
-      "id": "fi_07",
+      "id": "fi_03",
       "text": "自分の価値観より、周囲の期待に応える方が大切だと感じる",
       "function": "Fi",
       "reverse": true,
       "priority": 2,
       "tags": ["external", "expectations"],
       "related": {
-        "contradicts": ["fi_01", "fi_02", "fi_03"]
+        "contradicts": ["fi_01", "fi_02"]
       }
     },
     {
-      "id": "fi_08",
+      "id": "fi_04",
       "text": "個人的な信念より、客観的な基準で判断すべきだと思う",
       "function": "Fi",
       "reverse": true,
       "priority": 2,
       "tags": ["objective", "standards"],
       "related": {
-        "contradicts": ["fi_01", "fi_06"]
+        "contradicts": ["fi_01"]
       }
     },
     {
@@ -504,14 +281,6 @@
     },
     {
       "id": "fe_02",
-      "text": "意見が対立した時、まず全員が納得できる落とし所を探す",
-      "function": "Fe",
-      "reverse": false,
-      "priority": 1,
-      "tags": ["consensus", "mediation"]
-    },
-    {
-      "id": "fe_03",
       "text": "相手の表情や声のトーンから、今どんな気持ちか察することができる",
       "function": "Fe",
       "reverse": false,
@@ -519,49 +288,25 @@
       "tags": ["perception", "emotion"]
     },
     {
-      "id": "fe_04",
-      "text": "誰かの顔色が変わると、すぐに「何かあった？」と気になる",
-      "function": "Fe",
-      "reverse": false,
-      "priority": 2,
-      "tags": ["attentive", "concern"]
-    },
-    {
-      "id": "fe_05",
-      "text": "落ち込んでいる人がいると、つい声をかけてしまう",
-      "function": "Fe",
-      "reverse": false,
-      "priority": 2,
-      "tags": ["support", "care"]
-    },
-    {
-      "id": "fe_06",
-      "text": "「こういう場ではこう振る舞うべき」という感覚が自然とある",
-      "function": "Fe",
-      "reverse": false,
-      "priority": 3,
-      "tags": ["norms", "social"]
-    },
-    {
-      "id": "fe_07",
+      "id": "fe_03",
       "text": "周囲の期待より、自分が正しいと思うことを優先する",
       "function": "Fe",
       "reverse": true,
       "priority": 2,
       "tags": ["independence", "conviction"],
       "related": {
-        "contradicts": ["fe_01", "fe_02"]
+        "contradicts": ["fe_01"]
       }
     },
     {
-      "id": "fe_08",
+      "id": "fe_04",
       "text": "調和を保つより、率直に意見を言う方が誠実だと思う",
       "function": "Fe",
       "reverse": true,
       "priority": 2,
       "tags": ["honesty", "directness"],
       "related": {
-        "contradicts": ["fe_01", "fe_02"]
+        "contradicts": ["fe_01"]
       }
     }
   ]
