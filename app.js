@@ -1,10 +1,10 @@
 // ============================================
-// app.js - Application Entry Point (3モード対応版)
+// app.js - Application Entry Point (メモ化実装版 v3)
 // ============================================
 
-import { useDiagnosisState, useLocalStorage } from './hooks.js';
+import { useDiagnosisState, createStorageManager } from './hooks.js';
 import { ProgressSection, QuestionCard, ResultCard } from './components.js';
-import { useHandlers } from './handlers.js';
+import { createHandlers } from './handlers.js';
 import { initializeData } from './data.js';
 import { 
     calculateScore, 
@@ -14,106 +14,39 @@ import {
 } from './core.js';
 
 // ============================================
-// URLパラメータ取得
+// 定数定義(イミュータブル)
 // ============================================
 
-/**
- * URLからモードパラメータを取得
- * @returns {string} モード ('simple' | 'standard' | 'detail')
- */
-function getModeFromURL() {
-    const params = new URLSearchParams(window.location.search);
-    const mode = params.get('mode');
-    const validModes = ['simple', 'standard', 'detail'];
-    
-    if (mode && validModes.includes(mode)) {
-        console.info(`[App] URLパラメータからモード取得: ${mode}`);
-        return mode;
-    }
-    
-    // デフォルトはstandard
-    console.info('[App] デフォルトモード使用: standard');
-    return 'standard';
-}
-
-/**
- * モード名を日本語表示用に変換
- * @param {string} mode - モードID
- * @returns {string} 日本語名
- */
-function getModeDisplayName(mode) {
-    const names = {
-        simple: 'クイック診断',
-        standard: 'スタンダード診断',
-        detail: '詳細診断'
-    };
-    return names[mode] || mode;
-}
-
-// ============================================
-// 型定義 (JSDoc)
-// ============================================
-
-/**
- * @typedef {Object} Question
- * @property {string} id - 質問ID
- * @property {string} text - 質問文
- * @property {keyof typeof FUNCTIONS} function - 認知機能
- * @property {boolean} [reverse] - 逆転項目フラグ
- * @property {number} priority - 優先度
- * @property {string[]} tags - タグ
- * @property {Object} [related] - 関連情報
- * @property {string[]} [related.contradicts] - 矛盾する質問ID
- */
-
-/**
- * @typedef {Object} DiagnosisState
- * @property {number} currentQuestion - 現在の質問インデックス
- * @property {Object<string, {value: number, isReverse: boolean}>} answers - 回答記録
- * @property {Object<string, number>} functionScores - 機能スコア
- * @property {boolean} showResult - 結果表示フラグ
- */
-
-/**
- * @typedef {Object} AppContext
- * @property {Question[]} questions - 質問配列
- * @property {Object<string, string[]>} cognitiveStacks - 認知スタック定義
- * @property {Object<string, {name: string, description: string}>} mbtiDescriptions - MBTI説明
- * @property {ReturnType<typeof useDiagnosisState>} diagnosisState - 診断状態
- * @property {ReturnType<typeof useHandlers>} handlers - イベントハンドラー
- * @property {ReturnType<typeof useLocalStorage>} storage - ストレージ
- * @property {string} mode - 現在のモード
- */
-
-// ============================================
-// 定数定義
-// ============================================
-
-const CONFIG = {
-    /** 信頼できる診断に必要な最小回答数 */
+/** アプリケーション設定 */
+const CONFIG = Object.freeze({
     MIN_RELIABLE_ANSWERS: 8,
-    /** Shadow説明表示の遅延時間 (ms) */
     SHADOW_EXPLANATION_DELAY: 500,
-    /** 通知表示時間 (ms) */
     NOTIFICATION_DURATION: 3000,
-    /** シャッフル最大試行回数 */
     SHUFFLE_MAX_ATTEMPTS: 5000,
-    /** シャッフル制約緩和試行回数 */
     SHUFFLE_RELAXED_ATTEMPTS: 1000,
-    /** 画面遷移アニメーション遅延 (ms) */
-    TRANSITION_DELAY: 100,
-};
+    TRANSITION_DELAY: 200,
+    VALID_MODES: Object.freeze(['simple', 'standard', 'detail']),
+    DEFAULT_MODE: 'standard'
+});
 
-const ERROR_MESSAGES = {
+/** エラーメッセージ定数 */
+const ERROR_MESSAGES = Object.freeze({
     INIT_FAILED: 'アプリケーションの初期化に失敗しました',
     NO_QUESTIONS: '質問データが読み込まれませんでした',
     NETWORK_ERROR: 'ネットワークエラーが発生しました。オフラインモードで起動します。',
     JSON_PARSE_ERROR: 'データの読み込みに失敗しました。バックアップデータを使用します。',
     MODE_MISMATCH: 'モードが変更されたため、保存データをクリアしました'
-};
+});
+
+/** モード表示名マッピング */
+const MODE_DISPLAY_NAMES = Object.freeze({
+    simple: 'クイック診断',
+    standard: 'スタンダード診断',
+    detail: '詳細診断'
+});
 
 // ============================================
-// アプリケーションコンテキスト (グローバル変数削減)
+// グローバル状態(最小限に抑制)
 // ============================================
 
 /** @type {AppContext|null} */
@@ -123,7 +56,118 @@ let appContext = null;
 let hasSeenShadowExplanation = false;
 
 // ============================================
-// ユーティリティ: 質問のシャッフル
+// メモ化システム (React移行準備)
+// ============================================
+
+/**
+ * シンプルなメモ化ヘルパー
+ * React移行時は useMemo に置き換え
+ */
+function createMemo() {
+    const cache = new Map();
+    
+    return function memoize(key, computeFn) {
+        if (cache.has(key)) {
+            return cache.get(key);
+        }
+        const value = computeFn();
+        cache.set(key, value);
+        return value;
+    };
+}
+
+// メモキャッシュインスタンス
+let scoreMemo = createMemo();
+let typeMemo = createMemo();
+
+/**
+ * メモキャッシュをクリア(状態更新時に呼ぶ)
+ */
+function clearMemoCache() {
+    scoreMemo = createMemo();
+    typeMemo = createMemo();
+    console.debug('[Memo] Cache cleared');
+}
+
+/**
+ * メモ化されたスコア計算
+ * React移行時: useMemo(() => recalculateFunctionScores(state, questions), [state.answers, state.currentQuestion])
+ * @param {DiagnosisState} state - 診断状態
+ * @param {Question[]} questions - 質問配列
+ * @returns {Object<string, number>} 機能スコア
+ */
+function getMemoizedScores(state, questions) {
+    const key = `${state.currentQuestion}-${Object.keys(state.answers).length}`;
+    return scoreMemo(key, () => recalculateFunctionScores(state, questions));
+}
+
+/**
+ * メモ化されたタイプ判定
+ * React移行時: useMemo(() => getProvisionalType(scores, state), [scores, state.answers])
+ * @param {Object<string, number>} currentScores - 現在のスコア
+ * @param {DiagnosisState} state - 診断状態
+ * @param {Question[]} questions - 質問配列
+ * @returns {string} MBTI タイプ
+ */
+function getMemoizedProvisionalType(currentScores, state, questions) {
+    const answeredCount = Object.keys(state.answers).length;
+    const key = `${answeredCount}-${currentScores.Ni}-${currentScores.Ne}`;
+    
+    return typeMemo(key, () => {
+        if (!appContext) return 'INTJ';
+        
+        if (answeredCount === 0) {
+            return 'INTJ';
+        }
+        
+        const result = determineMBTITypeWithConsistency(
+            currentScores, 
+            appContext.cognitiveStacks, 
+            state.answers, 
+            questions,
+            appContext.mode
+        );
+        return result.type;
+    });
+}
+
+// ============================================
+// URL・モード管理
+// ============================================
+
+/**
+ * URLからモードパラメータを取得
+ * @returns {string} モード ('simple' | 'standard' | 'detail')
+ */
+function getModeFromURL() {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const mode = params.get('mode');
+        
+        if (mode && CONFIG.VALID_MODES.includes(mode)) {
+            console.info(`[App] URLパラメータからモード取得: ${mode}`);
+            return mode;
+        }
+        
+        console.info(`[App] デフォルトモード使用: ${CONFIG.DEFAULT_MODE}`);
+        return CONFIG.DEFAULT_MODE;
+    } catch (error) {
+        console.error('[App] Error in getModeFromURL:', error);
+        return CONFIG.DEFAULT_MODE;
+    }
+}
+
+/**
+ * モード名を日本語表示用に変換
+ * @param {string} mode - モードID
+ * @returns {string} 日本語名
+ */
+function getModeDisplayName(mode) {
+    return MODE_DISPLAY_NAMES[mode] || mode;
+}
+
+// ============================================
+// データ初期化・シャッフル
 // ============================================
 
 /**
@@ -170,7 +214,9 @@ function shuffleQuestionsWithConstraints(questions, seed) {
         
         let hasConsecutive = false;
         for (let i = 1; i < shuffled.length; i++) {
-            if (shuffled[i].function === shuffled[i - 1].function) {
+            const funcType1 = shuffled[i].funcType || shuffled[i].function;
+            const funcType2 = shuffled[i - 1].funcType || shuffled[i - 1].function;
+            if (funcType1 === funcType2) {
                 hasConsecutive = true;
                 break;
             }
@@ -181,7 +227,7 @@ function shuffleQuestionsWithConstraints(questions, seed) {
         }
     }
     
-    console.warn(`制約付きシャッフルが${CONFIG.SHUFFLE_MAX_ATTEMPTS}回で完了しませんでした。制約を緩和します。`);
+    console.warn(`[Shuffle] 制約付きシャッフルが${CONFIG.SHUFFLE_MAX_ATTEMPTS}回で完了しませんでした。制約を緩和します。`);
     
     // 3連続まで許容
     for (let attempt = 0; attempt < CONFIG.SHUFFLE_RELAXED_ATTEMPTS; attempt++) {
@@ -190,29 +236,31 @@ function shuffleQuestionsWithConstraints(questions, seed) {
         
         let hasTripleConsecutive = false;
         for (let i = 2; i < shuffled.length; i++) {
-            if (shuffled[i].function === shuffled[i - 1].function && 
-                shuffled[i].function === shuffled[i - 2].function) {
+            const funcType1 = shuffled[i].funcType || shuffled[i].function;
+            const funcType2 = shuffled[i - 1].funcType || shuffled[i - 1].function;
+            const funcType3 = shuffled[i - 2].funcType || shuffled[i - 2].function;
+            if (funcType1 === funcType2 && funcType1 === funcType3) {
                 hasTripleConsecutive = true;
                 break;
             }
         }
         
         if (!hasTripleConsecutive) {
-            console.info('制約緩和版シャッフル成功(3連続まで許容)');
+            console.info('[Shuffle] 制約緩和版シャッフル成功(3連続まで許容)');
             return { shuffled, seed: currentSeed };
         }
     }
     
-    console.warn('制約なしシャッフルを使用します');
+    console.warn('[Shuffle] 制約なしシャッフルを使用します');
     return { shuffled: fisherYatesShuffleWithSeed(questions, seed), seed };
 }
 
 // ============================================
-// ビジネスロジック
+// ビジネスロジック(UIに依存しない)
 // ============================================
 
 /**
- * 機能スコアを再計算（モード対応版）
+ * 機能スコアを再計算
  * @param {DiagnosisState} state - 診断状態
  * @param {Question[]} questions - 質問配列
  * @returns {Object<string, number>} 機能スコア
@@ -231,7 +279,11 @@ function recalculateFunctionScores(state, questions) {
             const answerValue = typeof answer === 'object' ? answer.value : answer;
             const isReverse = typeof answer === 'object' ? answer.isReverse : false;
             const delta = calculateScore(answerValue, isReverse);
-            scores[q.function] += delta;
+            const funcType = q.funcType || q.function;
+            
+            if (funcType in scores) {
+                scores[funcType] += delta;
+            }
         }
     }
     
@@ -239,61 +291,31 @@ function recalculateFunctionScores(state, questions) {
 }
 
 /**
- * 暫定タイプを取得（モード対応版）
- * @param {DiagnosisState} state - 診断状態
- * @param {Question[]} questions - 質問配列
- * @returns {string} MBTI タイプ
- */
-function getProvisionalType(state, questions) {
-    if (!appContext) return 'INTJ';
-    
-    const answeredCount = Object.keys(state.answers).length;
-    
-    if (answeredCount === 0) {
-        return 'INTJ';
-    }
-    
-    const currentScores = recalculateFunctionScores(state, questions);
-    const result = determineMBTITypeWithConsistency(
-        currentScores, 
-        appContext.cognitiveStacks, 
-        state.answers, 
-        questions,
-        appContext.mode  // モードを渡す
-    );
-    return result.type;
-}
-
-/**
- * 各選択肢の影響を計算（モード対応版）
+ * 各選択肢の影響を計算
  * @param {Question} question - 質問
  * @param {DiagnosisState} state - 診断状態
  * @param {Question[]} questions - 質問配列
+ * @param {Object<string, number>|null} currentScores - 事前計算されたスコア
  * @returns {Array<Object>} 影響データ配列
  */
-function calculateOptionImpacts(question, state, questions) {
+function calculateOptionImpacts(question, state, questions, currentScores = null) {
     if (!appContext) return [];
     
-    const funcType = question.function;
+    const funcType = question.funcType || question.function;
     const isReverse = question.reverse || false;
-    const provisionalType = getProvisionalType(state, questions);
+    
+    // スコアが渡されていなければメモ化版を使用
+    const scores = currentScores || getMemoizedScores(state, questions);
+    const provisionalType = getMemoizedProvisionalType(scores, state, questions);
     const stack = appContext.cognitiveStacks[provisionalType];
     
-    // モード別の重みを動的にインポート・適用
-    import('./core.js').then(module => {
-        const MODE_WEIGHT_CONFIGS = module.MODE_WEIGHT_CONFIGS;
-    });
-    
-    // 暫定: 標準的な重みを使用（core.jsから取得）
     const weights = [4.0, 2.0, 1.0, 0.5];
-    
-    const currentScores = recalculateFunctionScores(state, questions);
     
     return [1, 2, 3, 4, 5].map(value => {
         const delta = calculateScore(value, isReverse);
         const position = stack.indexOf(funcType);
         
-        const currentRaw = currentScores[funcType];
+        const currentRaw = scores[funcType];
         const currentNormalized = getNormalizedScore(currentRaw, appContext.mode);
         
         const newRaw = currentRaw + delta;
@@ -424,7 +446,7 @@ function showModeChangeNotification(mode) {
  * 初期フォーカスを設定
  */
 function setInitialFocus() {
-    setTimeout(() => {
+    requestAnimationFrame(() => {
         const selectedOption = document.querySelector('.option[aria-checked="true"]');
         const firstOption = document.querySelector('.option');
         const targetOption = selectedOption || firstOption;
@@ -435,7 +457,7 @@ function setInitialFocus() {
                 opt.tabIndex = opt === targetOption ? 0 : -1;
             });
         }
-    }, 0);
+    });
 }
 
 // ============================================
@@ -446,12 +468,15 @@ function setInitialFocus() {
  * 進捗セクションを更新
  * @param {DiagnosisState} state - 診断状態
  * @param {Question[]} questions - 質問配列
+ * @param {Object<string, number>|null} currentScores - 事前計算されたスコア
+ * @param {string|null} provisionalType - 事前計算されたタイプ
  */
-function updateProgressSection(state, questions) {
+function updateProgressSection(state, questions, currentScores = null, provisionalType = null) {
     if (!appContext) return;
     
-    const provisionalType = getProvisionalType(state, questions);
-    const currentScores = recalculateFunctionScores(state, questions);
+    // スコアが渡されていなければメモ化版を使用
+    const scores = currentScores || getMemoizedScores(state, questions);
+    const type = provisionalType || getMemoizedProvisionalType(scores, state, questions);
     
     const progressSection = document.getElementById('progress-section');
     if (!progressSection) return;
@@ -459,18 +484,18 @@ function updateProgressSection(state, questions) {
     const previousType = progressSection.dataset.currentType;
     const wasOpen = document.getElementById('scores-list')?.classList.contains('open');
     
-    if (!progressSection.dataset.initialized || previousType !== provisionalType) {
+    if (!progressSection.dataset.initialized || previousType !== type) {
         progressSection.innerHTML = ProgressSection.render(
             state,
-            provisionalType,
+            type,
             appContext.mbtiDescriptions,
             appContext.cognitiveStacks,
             (score) => getNormalizedScore(score, appContext.mode),
             questions,
-            currentScores
+            scores
         );
         progressSection.dataset.initialized = 'true';
-        progressSection.dataset.currentType = provisionalType;
+        progressSection.dataset.currentType = type;
         
         if (wasOpen) {
             const scoresList = document.getElementById('scores-list');
@@ -511,25 +536,26 @@ function updateProgressSection(state, questions) {
                 : '');
     }
     
-    updateScoresList(state, questions);
+    updateScoresList(state, questions, scores);
 }
 
 /**
  * スコアリストを更新
  * @param {DiagnosisState} state - 診断状態
  * @param {Question[]} questions - 質問配列
+ * @param {Object<string, number>|null} currentScores - 事前計算されたスコア
  */
-function updateScoresList(state, questions) {
+function updateScoresList(state, questions, currentScores = null) {
     if (!appContext) return;
     
-    const provisionalType = getProvisionalType(state, questions);
+    const scores = currentScores || getMemoizedScores(state, questions);
+    const provisionalType = getMemoizedProvisionalType(scores, state, questions);
     const stack = appContext.cognitiveStacks[provisionalType];
     const allFunctions = ['Ni', 'Ne', 'Si', 'Se', 'Ti', 'Te', 'Fi', 'Fe'];
-    const currentScores = recalculateFunctionScores(state, questions);
     const orderedFunctions = [...stack, ...allFunctions.filter(f => !stack.includes(f))];
     
     orderedFunctions.forEach(key => {
-        const normalizedValue = getNormalizedScore(currentScores[key], appContext.mode);
+        const normalizedValue = getNormalizedScore(scores[key], appContext.mode);
         const valueEl = document.querySelector(`[data-score-key="${key}"] .score-mini-value`);
         
         if (valueEl) {
@@ -554,13 +580,27 @@ function renderQuestion(state, questions) {
     if (!appContext) return;
     
     const question = questions[state.currentQuestion];
+    
+    if (!question) {
+        console.error('[App] Invalid question at index:', state.currentQuestion);
+        return;
+    }
+    
     const savedAnswer = state.answers[question.id];
     const currentValue = savedAnswer ? savedAnswer.value : undefined;
     
-    const impacts = calculateOptionImpacts(question, state, questions);
+    // メモ化されたスコア取得
+    const currentScores = getMemoizedScores(state, questions);
+    
+    // メモ化されたタイプ取得
+    const provisionalType = getMemoizedProvisionalType(currentScores, state, questions);
+    
+    // 影響計算(スコアを渡す)
+    const impacts = calculateOptionImpacts(question, state, questions, currentScores);
     const isShadow = impacts[0].isShadow;
     
-    updateProgressSection(state, questions);
+    // 進捗更新(スコアとタイプを渡す)
+    updateProgressSection(state, questions, currentScores, provisionalType);
     
     const questionContent = document.getElementById('question-content');
     if (!questionContent) return;
@@ -614,7 +654,7 @@ function renderResult(state) {
         appContext.cognitiveStacks,
         state.answers,
         appContext.questions,
-        appContext.mode  // モードを渡す
+        appContext.mode
     );
     
     const questionScreen = document.getElementById('question-screen');
@@ -633,7 +673,7 @@ function renderResult(state) {
             (score) => getNormalizedScore(score, appContext.mode),
             state.functionScores,
             appContext.questions,
-            appContext.mode  // モードを渡す
+            appContext.mode
         );
     }
 }
@@ -644,10 +684,15 @@ function renderResult(state) {
  * @param {Question[]} questions - 質問配列
  */
 function render(state, questions) {
-    if (state.showResult) {
-        renderResult(state);
-    } else {
-        renderQuestion(state, questions);
+    try {
+        if (state.showResult) {
+            renderResult(state);
+        } else {
+            renderQuestion(state, questions);
+        }
+    } catch (error) {
+        console.error('[App] Render error:', error);
+        showErrorScreen(error, 'レンダリング中にエラーが発生しました');
     }
 }
 
@@ -730,7 +775,7 @@ window.toggleScores = function() {
  * @param {string} message - ユーザー向けメッセージ
  */
 function showErrorScreen(error, message) {
-    console.error('Application Error:', error);
+    console.error('[App] Application Error:', error);
     
     const errorDiv = document.getElementById('question-content');
     if (errorDiv) {
@@ -775,20 +820,56 @@ function showLoadingScreen() {
 // ============================================
 
 /**
- * アプリケーションを初期化
- * @returns {Promise<void>}
+ * UIを初期化
+ * @private
  */
-async function initializeApplication() {
-    showLoadingScreen();
+function initUI() {
+    try {
+        const mode = getModeFromURL();
+        document.title = `Persona Finder - ${getModeDisplayName(mode)}`;
+    } catch (error) {
+        console.error('[App] Error in initUI:', error);
+    }
+}
+
+/**
+ * ストレージを初期化
+ * @private
+ * @param {string} mode - 現在のモード
+ * @returns {ReturnType<typeof createStorageManager>} ストレージマネージャー
+ */
+function initStorage(mode) {
+    const storage = createStorageManager('persona_finder');
     
     try {
-        // URLパラメータからモード取得
-        const mode = getModeFromURL();
-        
-        // ページタイトルにモード表示
-        document.title = `Persona Finder - ${getModeDisplayName(mode)}`;
-        
-        // データ読み込み
+        const savedMode = storage.getMode();
+        if (savedMode && savedMode !== mode) {
+            console.warn(`[App] モード不一致 (保存: ${savedMode}, 現在: ${mode}). 診断状態のみリセット`);
+            
+            // シャッフルシードを保持
+            const seed = storage.shuffleSeed.get();
+            storage.clearAll();
+            storage.shuffleSeed.set(seed);
+            storage.setMode(mode);
+            showModeChangeNotification(mode);
+        } else if (!savedMode) {
+            storage.setMode(mode);
+        }
+    } catch (error) {
+        console.error('[App] Error in initStorage:', error);
+    }
+    
+    return storage;
+}
+
+/**
+ * データを初期化
+ * @private
+ * @param {string} mode - 現在のモード
+ * @returns {Promise<Object>} データオブジェクト
+ */
+async function initData(mode) {
+    try {
         const data = await initializeData(mode);
         
         if (!data.questions || data.questions.length === 0) {
@@ -797,21 +878,121 @@ async function initializeApplication() {
         
         console.info(`[App] モード: ${mode}, 質問数: ${data.questions.length}`);
         
-        // ストレージ初期化
-        const storage = useLocalStorage();
-        
-        // シャッフル
+        return data;
+    } catch (error) {
+        console.error('[App] Error in initData:', error);
+        throw error;
+    }
+}
+
+/**
+ * 質問をシャッフル
+ * @private
+ * @param {Question[]} questions - 質問配列
+ * @param {ReturnType<typeof createStorageManager>} storage - ストレージマネージャー
+ * @returns {Question[]} シャッフルされた質問配列
+ */
+function initQuestions(questions, storage) {
+    try {
         let shuffleSeed = storage.shuffleSeed.get();
-        const { shuffled: shuffledQuestions, seed: usedSeed } = 
-            shuffleQuestionsWithConstraints(data.questions, shuffleSeed);
+        const { shuffled, seed: usedSeed } = shuffleQuestionsWithConstraints(questions, shuffleSeed);
         storage.shuffleSeed.set(usedSeed);
         
-        // 状態管理初期化
-        const diagnosisState = useDiagnosisState(shuffledQuestions);
-        const handlers = useHandlers(diagnosisState, shuffledQuestions, calculateScore, storage);
+        return shuffled;
+    } catch (error) {
+        console.error('[App] Error in initQuestions:', error);
+        return questions;
+    }
+}
+
+/**
+ * ハンドラーを初期化
+ * @private
+ * @param {ReturnType<typeof useDiagnosisState>} diagnosisState - 診断状態
+ * @param {Question[]} questions - 質問配列
+ * @param {ReturnType<typeof createStorageManager>} storage - ストレージマネージャー
+ * @returns {ReturnType<typeof createHandlers>} ハンドラー関数群
+ */
+function initHandlers(diagnosisState, questions, storage) {
+    try {
+        const handlers = createHandlers({
+            diagnosisState,
+            questions,
+            calculateScore,
+            storage
+        });
         
-        // アプリケーションコンテキスト設定
-        appContext = {
+        // グローバルハンドラー登録(後方互換性のため)
+        window.handleAnswer = handlers.handleAnswer.bind(handlers);
+        window.goBack = handlers.goBack.bind(handlers);
+        window.goNext = handlers.goNext.bind(handlers);
+        window.reset = handlers.reset.bind(handlers);
+        window.handleKeyboardNav = handlers.handleKeyboardNav.bind(handlers);
+        
+        return handlers;
+    } catch (error) {
+        console.error('[App] Error in initHandlers:', error);
+        throw error;
+    }
+}
+
+/**
+ * 状態を復元
+ * @private
+ * @param {ReturnType<typeof useDiagnosisState>} diagnosisState - 診断状態
+ * @param {ReturnType<typeof createStorageManager>} storage - ストレージマネージャー
+ * @param {string} mode - 現在のモード
+ * @returns {boolean} 復元が成功したかどうか
+ */
+function restoreState(diagnosisState, storage, mode) {
+    try {
+        const savedState = storage.loadState();
+        const savedMode = storage.getMode();
+        
+        if (savedState && savedMode === mode) {
+            diagnosisState.setState(savedState);
+            console.info(`[App] 保存状態を復元 (mode: ${savedMode})`);
+            return true;
+        }
+        
+        return false;
+    } catch (error) {
+        console.error('[App] Error in restoreState:', error);
+        return false;
+    }
+}
+
+/**
+ * アプリケーションを初期化
+ * @returns {Promise<void>}
+ */
+async function initializeApplication() {
+    showLoadingScreen();
+    
+    try {
+        // 1. UI初期化
+        initUI();
+        
+        // 2. モード取得
+        const mode = getModeFromURL();
+        
+        // 3. ストレージ初期化
+        const storage = initStorage(mode);
+        
+        // 4. データ読み込み
+        const data = await initData(mode);
+        
+        // 5. 質問シャッフル
+        const shuffledQuestions = initQuestions(data.questions, storage);
+        
+        // 6. 状態管理初期化
+        const diagnosisState = useDiagnosisState(shuffledQuestions);
+        
+        // 7. ハンドラー初期化
+        const handlers = initHandlers(diagnosisState, shuffledQuestions, storage);
+        
+        // 8. アプリケーションコンテキスト設定
+        appContext = Object.freeze({
             questions: shuffledQuestions,
             cognitiveStacks: data.cognitiveStacks,
             mbtiDescriptions: data.mbtiDescriptions,
@@ -819,51 +1000,37 @@ async function initializeApplication() {
             handlers,
             storage,
             mode
-        };
-        
-        // Shadow説明の表示履歴チェック
-        hasSeenShadowExplanation = storage.shadowSeen.get();
-        
-        // 状態監視
-        diagnosisState.subscribe((state) => {
-            storage.saveState(state);
-            render(state, appContext.questions);
         });
         
-        // 保存状態の復元
-        const savedState = storage.loadState();
-        const savedMode = storage.getMode();
+        // 9. Shadow説明の表示履歴チェック
+        hasSeenShadowExplanation = storage.shadowSeen.get();
         
-        if (savedState && savedMode === mode) {
-            // モードが一致する場合のみ復元
-            diagnosisState.setState(savedState);
-            console.info(`[App] 保存状態を復元 (mode: ${savedMode})`);
-        } else if (savedState && savedMode !== mode) {
-            // モードが変わった場合はクリア
-            console.warn(`[App] モード不一致 (保存: ${savedMode}, 現在: ${mode}). 状態をリセット`);
-            storage.clearAll();
-            storage.setMode(mode);
-            showModeChangeNotification(mode);
-        } else {
-            // 初回起動
-            storage.setMode(mode);
-        }
+        // 10. 状態監視
+        diagnosisState.subscribe((state) => {
+            try {
+                // メモキャッシュをクリア
+                clearMemoCache();
+                
+                storage.saveState(state);
+                render(state, appContext.questions);
+            } catch (error) {
+                console.error('[App] Error in state subscription:', error);
+            }
+        });
         
-        // グローバルハンドラー登録
-        window.handleAnswer = handlers.handleAnswer;
-        window.goBack = handlers.goBack;
-        window.goNext = handlers.goNext;
-        window.reset = handlers.reset;
-        window.handleKeyboardNav = handlers.handleKeyboardNav;
+        // 11. 保存状態の復元
+        const wasRestored = restoreState(diagnosisState, storage, mode);
         
-        // 初回レンダリング
+        // 12. 初回レンダリング
         const state = diagnosisState.getState();
         render(state, appContext.questions);
         
-        // 復元通知
-        if (savedState && savedMode === mode && state.currentQuestion > 0) {
+        // 13. 復元通知
+        if (wasRestored && state.currentQuestion > 0) {
             showRestoreNotification(state, appContext.questions);
         }
+        
+        console.info('[App] Application initialized successfully');
         
     } catch (error) {
         // エラー種別に応じた処理
@@ -881,4 +1048,39 @@ async function initializeApplication() {
 // エントリーポイント
 // ============================================
 
-window.onload = initializeApplication;
+/**
+ * DOMContentLoaded イベントハンドラー
+ */
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeApplication);
+} else {
+    // 既に読み込み済みの場合は即実行
+    initializeApplication();
+}
+
+// 開発用: アプリケーションコンテキストをグローバルに公開(デバッグ用)
+if (typeof window !== 'undefined') {
+    const isDev = typeof process !== 'undefined' && process?.env?.NODE_ENV === 'development';
+    if (isDev) {
+        window.__APP_CONTEXT__ = appContext;
+    }
+}
+
+// ============================================
+// エクスポート(テスト用)
+// ============================================
+
+export {
+    initializeApplication,
+    getModeFromURL,
+    getModeDisplayName,
+    recalculateFunctionScores,
+    getMemoizedScores,
+    getMemoizedProvisionalType,
+    calculateOptionImpacts,
+    shuffleQuestionsWithConstraints,
+    clearMemoCache,
+    CONFIG,
+    ERROR_MESSAGES,
+    MODE_DISPLAY_NAMES
+};
