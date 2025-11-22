@@ -10,16 +10,16 @@
   <meta property="og:title" content="Persona Finder - 透明性を重視した認知機能診断">
   <meta property="og:description" content="ユングの認知機能理論を厳密に実装。すべての計算過程を公開し、科学的限界を正直に示します。">
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://yoursite.com/">
-  <meta property="og:image" content="https://yoursite.com/og-image.png">
+  <meta property="og:url" content="https://persona-finder.netlify.app">
+  <meta property="og:image" content="https://persona-finder.netlify.app/xxxx.png">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Persona Finder - 認知機能診断">
   <meta name="twitter:description" content="透明性と誠実さを重視したMBTI診断ツール">
-  <meta name="twitter:image" content="https://yoursite.com/og-image.png">
+  <meta name="twitter:image" content="https://persona-finder.netlify.app/xxxx.png">
 
   <!-- SEO -->
   <meta name="keywords" content="MBTI,認知機能,性格診断,ユング心理学,透明性,オープンソース">
-  <link rel="canonical" href="https://yoursite.com/">
+  <link rel="canonical" href="https://persona-finder.netlify.app">
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -31,6 +31,91 @@
   <link rel="stylesheet" href="assets/css/header.css">
   <link rel="stylesheet" href="assets/css/index.css">
   <link rel="stylesheet" href="assets/css/footer.css">
+
+  <!-- Structured Data (JSON-LD) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://persona-finder.netlify.app",
+    "@type": "WebApplication",
+    "name": "Persona Finder",
+    "description": "ユングの認知機能理論を厳密に実装した、完全に透明で検証可能なMBTI診断ツール",
+    "url": "https://persona-finder.netlify.app",
+    "applicationCategory": "LifestyleApplication",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "JPY"
+    }
+  }
+  </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://persona-finder.netlify.app",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "3つのモードの違いは何ですか?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "質問数と精度のトレードオフです。クイック診断(32問)は最短3分で完了、スタンダード診断(64問)はバランスの取れた精度と所要時間で最も推奨、詳細診断(96問)は最も精密な診断です。すべてのモードで同じアルゴリズムを使用しており、質問数が多いほど統計的な信頼性が向上します。"
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "この診断は科学的に正しいですか?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "いいえ、「科学的に正しい」とは言えません。MBTIは再現性や予測妥当性の面で、学術的な性格心理学の基準を満たしていません。Big Five(五因子モデル)のような統計的に検証された指標と比べると、職業適性や人間関係の予測力は著しく低いです。このツールは自己理解の補助的な言語として提供しています。"
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "他のMBTI診断と何が違うのですか?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "最大の違いは「透明性」と「誠実さ」です。このツールでは、すべての計算式、重み付けロジック、判定アルゴリズムをソースコードとして公開しています。さらに重要なのは、このツール自体の限界を隠さないこと。批判可能な形で提示することが、誠実さだと考えています。"
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "診断結果をどう受け止めればいいですか?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "「絶対的な真実」としてではなく、「対話の出発点」として。診断結果は、あなた自身の内省を言語化する補助的なフレームワークです。特に注目してほしいのは劣等機能です。それは欠点ではなく、まだ育ちきっていない可能性です。タイプは固定されたラベルではありません。"
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "データは保存されますか?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "いいえ、サーバーには一切送信されません。すべての計算はあなたのブラウザ内で完結します。回答内容は、途中でページを離れても再開できるよう、あなたのブラウザ内にのみ一時保存されます。外部サーバーへのデータ送信は一切行われず、診断完了後もデータは自動的に削除されます。"
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "このツールの限界は何ですか?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "理論的限界、測定の限界、実装の限界、解釈の限界、枠組の限界があります。ユングの8認知機能モデルは追試研究が不十分で学術的コンセンサスがありません。質問数では複雑な人間の認知を完全に捉えることは不可能です。これらの限界を知った上で、自分を見つめ直す道具として使ってください。"
+        }
+      }
+    ]
+  }
+  </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://persona-finder.netlify.app",
+    "@type": "Organization",
+    "name": "Persona Finder",
+    "url": "https://persona-finder.netlify.app",
+    "logo": "https://persona-finder.netlify.app/assets/images/logo.png",
+    "sameAs": []
+  }
+  </script>
 </head>
 <body>
   <div class="header"></div>

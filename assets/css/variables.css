@@ -10,18 +10,18 @@
 
 :root {
   /* ==========================================
-     カラーシステム
+     カラーシステム - インディゴ × コーラル
   ========================================== */
   
   /* プライマリカラー */
-  --color-primary: #3b82f6;
-  --color-secondary: #8b5cf6;
-  --accent-primary: #3b82f6;
-  --accent-secondary: #8b5cf6;
+  --color-primary: #4a5568;
+  --color-secondary: #ff6b6b;
+  --accent-primary: #4a5568;
+  --accent-secondary: #ff6b6b;
   
   /* グラデーション */
-  --gradient-accent: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  --accent-gradient: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  --gradient-accent: linear-gradient(135deg, #4a5568, #ff6b6b);
+  --accent-gradient: linear-gradient(135deg, #4a5568, #ff6b6b);
   
   /* 背景色 */
   --bg-primary: #ffffff;
@@ -38,15 +38,15 @@
   --border: rgba(0, 0, 0, 0.08);
   --border-light: rgba(0, 0, 0, 0.08);
   --border-medium: rgba(0, 0, 0, 0.12);
-  --border-hover: rgba(59, 130, 246, 0.4);
+  --border-hover: rgba(255, 107, 107, 0.4);
   --border-inverse: rgba(255, 255, 255, 0.08);
   
   /* アクセントカラー (透過) */
-  --accent-bg-subtle: rgba(59, 130, 246, 0.05);
-  --accent-bg-light: rgba(59, 130, 246, 0.05);
-  --accent-bg-medium: rgba(59, 130, 246, 0.1);
-  --accent-border: rgba(59, 130, 246, 0.2);
-  --accent-glow: rgba(59, 130, 246, 0.25);
+  --accent-bg-subtle: rgba(74, 85, 104, 0.05);
+  --accent-bg-light: rgba(74, 85, 104, 0.05);
+  --accent-bg-medium: rgba(74, 85, 104, 0.1);
+  --accent-border: rgba(74, 85, 104, 0.2);
+  --accent-glow: rgba(255, 107, 107, 0.25);
   
   /* カードスタイル */
   --card-bg: #ffffff;
@@ -139,9 +139,9 @@
   --shadow-2xl: 0 24px 48px rgba(0, 0, 0, 0.2);
   
   /* アクセント付きシャドウ */
-  --shadow-accent-sm: 0 2px 8px rgba(59, 130, 246, 0.15);
-  --shadow-accent-md: 0 4px 16px rgba(59, 130, 246, 0.25);
-  --shadow-accent-lg: 0 8px 24px rgba(59, 130, 246, 0.35);
+  --shadow-accent-sm: 0 2px 8px rgba(255, 107, 107, 0.15);
+  --shadow-accent-md: 0 4px 16px rgba(255, 107, 107, 0.25);
+  --shadow-accent-lg: 0 8px 24px rgba(255, 107, 107, 0.35);
   
   /* ==========================================
      Z-index スケール

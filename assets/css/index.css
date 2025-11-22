@@ -112,7 +112,7 @@ section.visible {
   transform: translateX(-50%);
   width: 600px;
   height: 600px;
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.08), transparent 70%);
+  background: radial-gradient(circle, rgba(255, 107, 107, 0.08), transparent 70%);
   pointer-events: none;
   z-index: -1;
 }
@@ -197,12 +197,12 @@ section.visible {
   color: #ffffff;
   background: var(--gradient-accent);
   border: none;
-  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.25);
+  box-shadow: 0 4px 16px rgba(255, 107, 107, 0.25);
 }
 
 .cta--primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.35);
+  box-shadow: 0 8px 24px rgba(255, 107, 107, 0.35);
 }
 
 .cta--primary:active {
@@ -371,12 +371,12 @@ section.visible {
 /* グループ別カラー */
 .types__group:nth-of-type(1) .types__group-title::before,
 .types__group:nth-of-type(1) .types__group-title::after {
-  background-color: #6ea8fe;
+  background-color: #ff6b6b;
 }
 
 .types__group:nth-of-type(2) .types__group-title::before,
 .types__group:nth-of-type(2) .types__group-title::after {
-  background-color: #f4b942;
+  background-color: #4a5568;
 }
 
 .types__group:nth-of-type(3) .types__group-title::before,
@@ -386,7 +386,7 @@ section.visible {
 
 .types__group:nth-of-type(4) .types__group-title::before,
 .types__group:nth-of-type(4) .types__group-title::after {
-  background-color: #6ac8a4;
+  background-color: #ff6b6b;
 }
 
 .types__grid {
@@ -628,7 +628,7 @@ section.visible {
   left: 20px;
   font-size: 80px;
   font-weight: var(--font-extrabold);
-  color: rgba(59, 130, 246, 0.08);
+  color: rgba(255, 107, 107, 0.08);
   font-family: var(--font-mono);
   line-height: 1;
   pointer-events: none;
@@ -641,7 +641,7 @@ section.visible {
   right: 0;
   font-size: 80px;
   font-weight: var(--font-extrabold);
-  color: rgba(59, 130, 246, 0.08);
+  color: rgba(255, 107, 107, 0.08);
   font-family: var(--font-mono);
   line-height: 1;
   pointer-events: none;
@@ -662,10 +662,10 @@ section.visible {
 }
 
 /* ========================================
-   挑発的な問いセクション
+   挑戦的な問いセクション
 ======================================== */
 .controversy {
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.03), rgba(59, 130, 246, 0.03));
+  background: linear-gradient(135deg, rgba(255, 107, 107, 0.03), rgba(74, 85, 104, 0.03));
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
   position: relative;
@@ -679,7 +679,7 @@ section.visible {
   transform: translateX(-50%);
   font-size: 120px;
   font-weight: var(--font-extrabold);
-  color: rgba(139, 92, 246, 0.05);
+  color: rgba(74, 85, 104, 0.05);
   font-family: var(--font-mono);
   pointer-events: none;
   z-index: 0;
@@ -750,7 +750,7 @@ section.visible {
   font-weight: var(--font-extrabold);
   font-family: var(--font-mono);
   color: #ffffff;
-  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.25);
+  box-shadow: 0 4px 16px rgba(255, 107, 107, 0.25);
 }
 
 .process__step-title {
@@ -838,7 +838,7 @@ section.visible {
 }
 
 /* ========================================
-   モードセレクター（診断選択カード）
+   モードセレクター(診断選択カード)
 ======================================== */
 .mode-selector {
   display: grid;
@@ -863,11 +863,11 @@ section.visible {
 .mode-card:hover {
   transform: translateY(-6px);
   border: 2px solid transparent;
-  box-shadow: 0 12px 32px rgba(59, 130, 246, 0.25);
+  box-shadow: 0 12px 32px rgba(255, 107, 107, 0.25);
   background: 
     linear-gradient(var(--card-bg), var(--card-bg)) padding-box,
-    linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(139, 92, 246, 0.08)) border-box,
-    linear-gradient(135deg, #3b82f6, #8b5cf6) border-box;
+    linear-gradient(135deg, rgba(255, 107, 107, 0.08), rgba(74, 85, 104, 0.08)) border-box,
+    linear-gradient(135deg, #ff6b6b, #4a5568) border-box;
 }
 
 .mode-card--recommended {
@@ -998,11 +998,11 @@ section.visible {
 }
 
 .mode-comparison__table .highlighted {
-  background: rgba(59, 130, 246, 0.1);
+  background: rgba(255, 107, 107, 0.1);
 }
 
 /* ========================================
-   CTA Buttons（最終セクション）
+   CTA Buttons(最終セクション)
 ======================================== */
 .cta-section__buttons {
   display: flex;
@@ -1021,10 +1021,10 @@ section.visible {
 
 .cta-section__buttons .cta:hover {
   transform: translateY(-4px);
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: linear-gradient(135deg, #ff6b6b, #4a5568);
   color: #ffffff;
   border-color: transparent;
-  box-shadow: 0 12px 32px rgba(59, 130, 246, 0.35);
+  box-shadow: 0 12px 32px rgba(255, 107, 107, 0.35);
 }
 
 .cta-section__buttons .cta--secondary {
