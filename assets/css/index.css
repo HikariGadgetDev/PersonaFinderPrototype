@@ -1539,9 +1539,11 @@ section.visible {
 
   .types__group-title::before,
   .types__group-title::after {
-    width: 28%;
+    width: 22%;
+    top: 65%;
   }
 }
+
 
 /* ========================================
    アクセシビリティ: モーション削減対応
