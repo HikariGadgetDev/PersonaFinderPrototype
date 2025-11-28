@@ -1,4 +1,4 @@
-/* ========================================
+/* ======================================== 
    index.css - BEM版 (variables.css対応)
    Persona Finder トップページ専用スタイル
    
@@ -1110,6 +1110,8 @@ section.visible {
 
   .cta-section__buttons .cta {
     width: 100%;
+    justify-content: center;
+    text-align: center;
   }
 }
 
@@ -1557,6 +1559,88 @@ section.visible {
   section {
     opacity: 1;
     transform: none;
+  }
+}
+
+/* ========================================
+   モバイル用カルーセル + 3Dスライダー用スタイル
+   （クイック/スタンダード/詳細 ＋ 認知機能 ＋ 16タイプ）
+======================================== */
+@media (max-width: 768px) {
+  /* 共通: 横スクロール＋スナップ（スクロールバー非表示） */
+  .mode-selector,
+  .cognitive__grid,
+  .types__grid {
+    display: flex;
+    overflow-x: auto;
+    gap: var(--space-md);
+    padding-bottom: var(--space-md);
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox: hide scrollbar */
+  }
+
+  .mode-selector::-webkit-scrollbar,
+  .cognitive__grid::-webkit-scrollbar,
+  .types__grid::-webkit-scrollbar {
+    display: none; /* Chrome / Safari: hide scrollbar */
+  }
+
+  .mode-card,
+  .cognitive__card,
+  .types__card {
+    flex: 0 0 85%;
+    max-width: 85%;
+    scroll-snap-align: center;
+  }
+
+  /* 3Dスライダー用: JS が付与するクラス */
+  .pf-slider {
+    perspective: 1200px;
+  }
+
+  .pf-slider__item {
+    transform-origin: center center;
+    transform-style: preserve-3d;
+    transition: transform 0.35s ease, opacity 0.35s ease;
+    will-change: transform, opacity;
+  }
+
+  /* ヒーロー直下の3モードだけ少しだけ目立たせる（高さ暴れ防止） */
+  .mode-card {
+    min-height: 0; /* Safari 対策 */
+  }
+}
+/* ========================================
+   ホバー効果の制御
+   - マウスありの環境だけ hover を有効
+   - タッチ環境(スマホ/タブレット)では hover で浮かないようにする
+======================================== */
+
+/* マウスあり（PCなど）：今までの hover を有効化するエリア */
+@media (hover: hover) and (pointer: fine) {
+  /* 何もしなくてOK。既存の :hover スタイルがそのまま効く。 */
+}
+
+/* タッチ主体（スマホ・タブレット）：hover で浮き上がり無効 */
+@media (hover: none), (pointer: coarse) {
+  .mode-card,
+  .mode-card:hover,
+  .cognitive__card,
+  .cognitive__card:hover,
+  .types__card,
+  .types__card:hover,
+  .features__card,
+  .features__card:hover,
+  .faq__item,
+  .faq__item:hover,
+  .transparency__quote,
+  .transparency__quote:hover,
+  .cta-section__buttons .cta,
+  .cta-section__buttons .cta:hover {
+    transform: none !important;
+    box-shadow: var(--card-shadow) !important;
+    border-color: var(--border) !important;
   }
 }
 
