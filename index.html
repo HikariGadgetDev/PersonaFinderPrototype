@@ -5,7 +5,18 @@
        基本メタ
   ========================================== -->
   <meta charset="utf-8">
+
+  <!-- Content-Security-Policy -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self';
+                 script-src 'self' 'unsafe-inline';
+                 style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+                 font-src 'self' https://fonts.gstatic.com;
+                 img-src 'self' data:;
+                 connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com;">
+
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
 
   <title>Persona Finder - 認知機能診断</title>
   <meta name="description" content="ユングの認知機能理論を厳密に実装した透明性重視のMBTI診断ツール。8認知機能・16タイプ・診断アルゴリズムすべて公開。誠実な自己理解のための診断アプリ。">
