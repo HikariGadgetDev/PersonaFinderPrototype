@@ -1,0 +1,52 @@
+{
+  "functions": [
+    {
+      "code": "Ni",
+      "nameJa": "内向的直観",
+      "shortDescription": "洞察と未来予測。パターンを認識し、抽象的な本質を掴む機能。",
+      "longDescription": ""
+    },
+    {
+      "code": "Ne",
+      "nameJa": "外向的直観",
+      "shortDescription": "可能性の探求。アイデアを発散させ、新しい関連性を発見する機能。",
+      "longDescription": ""
+    },
+    {
+      "code": "Si",
+      "nameJa": "内向的感覚",
+      "shortDescription": "経験と伝統。過去の記憶を参照し、詳細を正確に再現する機能。",
+      "longDescription": ""
+    },
+    {
+      "code": "Se",
+      "nameJa": "外向的感覚",
+      "shortDescription": "現在の体験。今この瞬間の五感情報を敏感に捉え、即座に反応する機能。",
+      "longDescription": ""
+    },
+    {
+      "code": "Ti",
+      "nameJa": "内向的思考",
+      "shortDescription": "論理的分析。内的な論理体系を構築し、矛盾を検出する機能。",
+      "longDescription": ""
+    },
+    {
+      "code": "Te",
+      "nameJa": "外向的思考",
+      "shortDescription": "効率的実行。客観的基準とシステムで、目標を達成する機能。",
+      "longDescription": ""
+    },
+    {
+      "code": "Fi",
+      "nameJa": "内向的感情",
+      "shortDescription": "個人的価値。内的な価値観と真正性を重視し、道徳的判断を行う機能。",
+      "longDescription": ""
+    },
+    {
+      "code": "Fe",
+      "nameJa": "外向的感情",
+      "shortDescription": "調和と共感。場の雰囲気を察知し、集団の調和を維持する機能。",
+      "longDescription": ""
+    }
+  ]
+}

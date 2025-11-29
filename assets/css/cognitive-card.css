@@ -1,0 +1,66 @@
+/* ========================================
+   認知機能セクション（カード関連）
+======================================== */
+.cognitive {
+  background: var(--bg-primary);
+}
+
+.cognitive__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-md);
+  margin-top: var(--space-xl);
+}
+
+.cognitive__card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  transition: all var(--transition-base);
+  box-shadow: var(--card-shadow);
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.cognitive__card:hover {
+  transform: translateY(-4px);
+  border-color: var(--border-hover);
+  box-shadow: var(--card-shadow-hover);
+  cursor: pointer;
+}
+
+.cognitive__card:active {
+  transform: translateY(-2px);
+}
+
+.cognitive__card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.cognitive__card-code {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xl);
+  font-weight: var(--font-extrabold);
+  background: var(--gradient-accent);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  flex-shrink: 0;
+}
+
+.cognitive__card-name {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.cognitive__card-desc {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  line-height: var(--leading-snug);
+}

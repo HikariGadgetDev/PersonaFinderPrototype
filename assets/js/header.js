@@ -1,8 +1,19 @@
 // ==========================================
-// header.js - BEM対応版（安定化）
+// header.js - BEM対応版（リファクタ / 本番想定）
+//
+// 機能:
+//  - .header 要素内にグローバルヘッダーを動的挿入
+//  - ドロップダウンメニュー（認知機能リンク）
+//  - スクロール時のヘッダーエフェクト
+//  - モバイルハンバーガーメニュー
+//  - 現在ページのナビリンクに aria-current="page" を付与
+//
+// 依存:
+//  - header.css（BEM: .header__*）
+//  - <div class="header"></div> が index.html 側に存在すること
 // ==========================================
 
-(function() {
+(function () {
   'use strict';
 
   // ==========================================
@@ -12,79 +23,386 @@
     enableDropdown: true,
     enableScrollEffect: true,
     scrollThreshold: 60,
-    debug: true // 開発時はtrue、本番はfalse
+
+    // デバッグ: ローカルホスト or ?headerDebug=true のときのみ true
+    debug: (function () {
+      try {
+        const host = location.hostname;
+        if (host === 'localhost' || host === '127.0.0.1') return true;
+        const params = new URLSearchParams(location.search);
+        if (params.get('headerDebug') === 'true') return true;
+      } catch (e) {
+        // ignore
+      }
+      return false;
+    })()
   };
 
   // デバッグログ
-  function log(message, level = 'info') {
+  function log(message, level) {
     if (!CONFIG.debug) return;
     const prefix = '[Header]';
-    console[level](`${prefix} ${message}`);
+    const lvl = level || 'info';
+    const logger = console[lvl] || console.log;
+    logger(prefix + ' ' + message);
   }
 
   // ==========================================
-  // ヘッダーHTMLテンプレート（BEM版）
+  // ページ情報の判定（現在地ハイライト用）
   // ==========================================
-  function getHeaderTemplate() {
-    // ページ別の aria-label
-    let ariaLabel = "ペルソナファインダー インデックスページ"; 
-    const pathname = location.pathname;
-    
-    if (pathname.endsWith("function.html")) {
-      ariaLabel = "ペルソナファインダー 詳細ページ";
-    } else if (pathname.endsWith("personality.html")) {
-      ariaLabel = "性格類型詳細ページ";
+  function getCurrentPageId() {
+    const path = location.pathname || '';
+    const search = location.search || '';
+
+    // シンプルな判定: 末尾ファイル名 + パラメータで分岐
+    if (path.endsWith('/index.html') || path === '/' || path === '') {
+      return 'home';
+    }
+    if (path.endsWith('/finder') || path.endsWith('/finder.html')) {
+      return 'finder';
+    }
+    if (path.endsWith('/function') || path.endsWith('/function.html')) {
+      return 'function';
+    }
+    if (path.endsWith('/types') || path.endsWith('/types.html')) {
+      return 'types';
+    }
+    if (path.endsWith('/personality.html')) {
+      return 'personality';
     }
 
-    return `
-      <div class="header__container">
-        <a href="index.html" class="header__logo" aria-label="${ariaLabel}">
-          <div class="header__logo-icon" aria-hidden="true">Ψ</div>
-          <span class="header__logo-text">Persona Finder</span>
-        </a>
+    // 例: function.html?code=ni など
+    if (search.indexOf('code=') !== -1 && path.indexOf('function') !== -1) {
+      return 'function';
+    }
 
-        <nav class="header__nav">
-          <a href="index.html" class="header__nav-link">Home</a>
-          <div class="header__dropdown">
-            <span class="header__dropdown-trigger">認知機能</span>
-            <div class="header__dropdown-menu">
-              <a href="function.html?code=ni" class="header__dropdown-link">Ni（内向的直観）</a>
-              <a href="function.html?code=ne" class="header__dropdown-link">Ne（外向的直観）</a>
-              <a href="function.html?code=si" class="header__dropdown-link">Si（内向的感覚）</a>
-              <a href="function.html?code=se" class="header__dropdown-link">Se（外向的感覚）</a>
-              <a href="function.html?code=ti" class="header__dropdown-link">Ti（内向的思考）</a>
-              <a href="function.html?code=te" class="header__dropdown-link">Te（外向的思考）</a>
-              <a href="function.html?code=fi" class="header__dropdown-link">Fi（内向的感情）</a>
-              <a href="function.html?code=fe" class="header__dropdown-link">Fe（外向的感情）</a>
-            </div>
-          </div>
-          <a href="types.html" class="header__nav-link">タイプ一覧</a>
-        </nav>
+    return 'unknown';
+  }
 
-        <!-- ハンバーガーメニューボタン（モバイル用） -->
-        <button class="header__hamburger" aria-label="メニューを開く" aria-expanded="false">
-          <span class="header__hamburger-line"></span>
-          <span class="header__hamburger-line"></span>
-          <span class="header__hamburger-line"></span>
-        </button>
-      </div>
-    `;
+  // aria-label 用
+  function getHeaderAriaLabel() {
+    const pageId = getCurrentPageId();
+
+    switch (pageId) {
+      case 'home':
+        return 'Persona Finder トップページ';
+      case 'finder':
+        return 'Persona Finder 診断ページ';
+      case 'function':
+        return 'Persona Finder 認知機能詳細ページ';
+      case 'types':
+        return 'Persona Finder タイプ一覧ページ';
+      case 'personality':
+        return 'Persona Finder 性格類型詳細ページ';
+      default:
+        return 'Persona Finder ナビゲーション';
+    }
   }
 
   // ==========================================
-  // フォールバックHTML（最小限）
+  // ヘッダーHTMLテンプレート
   // ==========================================
+  function getHeaderTemplate() {
+    const ariaLabel = getHeaderAriaLabel();
+
+    return (
+      '<div class="header__container">' +
+        // ロゴ
+        '<a href="index.html" class="header__logo" aria-label="' + ariaLabel + '">' +
+          '<div class="header__logo-icon" aria-hidden="true">Ψ</div>' +
+          '<span class="header__logo-text">Persona Finder</span>' +
+        '</a>' +
+
+        // ナビゲーション
+        '<nav' +
+          ' class="header__nav"' +
+          ' id="global-nav"' +
+          ' role="navigation"' +
+          ' aria-label="グローバルナビゲーション"' +
+        '>' +
+          '<a href="index.html" class="header__nav-link" data-nav="home">Home</a>' +
+
+          // 認知機能ドロップダウン
+          '<div class="header__dropdown">' +
+            '<span' +
+              ' class="header__dropdown-trigger"' +
+              ' role="button"' +
+              ' tabindex="0"' +
+              ' aria-haspopup="true"' +
+              ' aria-expanded="false"' +
+              ' aria-controls="header-cog-menu"' +
+            '>' +
+              '認知機能' +
+            '</span>' +
+            '<div' +
+              ' class="header__dropdown-menu"' +
+              ' id="header-cog-menu"' +
+              ' role="menu"' +
+            '>' +
+              '<a href="function.html?code=ni" class="header__dropdown-link" role="menuitem">Ni（内向的直観）</a>' +
+              '<a href="function.html?code=ne" class="header__dropdown-link" role="menuitem">Ne（外向的直観）</a>' +
+              '<a href="function.html?code=si" class="header__dropdown-link" role="menuitem">Si（内向的感覚）</a>' +
+              '<a href="function.html?code=se" class="header__dropdown-link" role="menuitem">Se（外向的感覚）</a>' +
+              '<a href="function.html?code=ti" class="header__dropdown-link" role="menuitem">Ti（内向的思考）</a>' +
+              '<a href="function.html?code=te" class="header__dropdown-link" role="menuitem">Te（外向的思考）</a>' +
+              '<a href="function.html?code=fi" class="header__dropdown-link" role="menuitem">Fi（内向的感情）</a>' +
+              '<a href="function.html?code=fe" class="header__dropdown-link" role="menuitem">Fe（外向的感情）</a>' +
+            '</div>' +
+          '</div>' +
+
+          '<a href="types.html" class="header__nav-link" data-nav="types">タイプ一覧</a>' +
+        '</nav>' +
+
+        // ハンバーガーメニュー
+        '<button' +
+          ' class="header__hamburger"' +
+          ' aria-label="メニューを開く"' +
+          ' aria-expanded="false"' +
+          ' aria-controls="global-nav"' +
+        '>' +
+          '<span class="header__hamburger-line"></span>' +
+          '<span class="header__hamburger-line"></span>' +
+          '<span class="header__hamburger-line"></span>' +
+        '</button>' +
+      '</div>'
+    );
+  }
+
+  // フォールバックHTML（最低限）
   function getFallbackTemplate() {
-    return `
-      <div class="header__container">
-        <a href="index.html" class="header__logo" aria-label="ホームに戻る">
-          <span class="header__logo-text">Persona Finder</span>
-        </a>
-        <nav class="header__nav">
-          <a href="index.html" class="header__nav-link">Home</a>
-        </nav>
-      </div>
-    `;
+    return (
+      '<div class="header__container">' +
+        '<a href="index.html" class="header__logo" aria-label="ホームに戻る">' +
+          '<span class="header__logo-text">Persona Finder</span>' +
+        '</a>' +
+        '<nav' +
+          ' class="header__nav"' +
+          ' role="navigation"' +
+          ' aria-label="グローバルナビゲーション"' +
+        '>' +
+          '<a href="index.html" class="header__nav-link" data-nav="home">Home</a>' +
+        '</nav>' +
+      '</div>'
+    );
+  }
+
+  // ==========================================
+  // 現在ページのナビリンクに aria-current 付与
+  // ==========================================
+  function markCurrentNavLink(headerElement) {
+    if (!headerElement) return;
+    var pageId = getCurrentPageId();
+
+    try {
+      var nav = headerElement.querySelector('.header__nav');
+      if (!nav) return;
+
+      var links = nav.querySelectorAll('.header__nav-link');
+      for (var i = 0; i < links.length; i++) {
+        var link = links[i];
+        var navId = link.getAttribute('data-nav');
+
+        // シンプルに home/types のみ対象（必要なら拡張）
+        var isCurrent = false;
+        if (pageId === 'home' && navId === 'home') isCurrent = true;
+        if (pageId === 'types' && navId === 'types') isCurrent = true;
+
+        if (isCurrent) {
+          link.setAttribute('aria-current', 'page');
+          link.classList.add('header__nav-link--current');
+        } else {
+          link.removeAttribute('aria-current');
+          link.classList.remove('header__nav-link--current');
+        }
+      }
+    } catch (e) {
+      log('Failed to mark current nav link: ' + e.message, 'warn');
+    }
+  }
+
+  // ==========================================
+  // ドロップダウン初期化（A11y対応）
+  // ==========================================
+  function initializeDropdown() {
+    var dropdown = document.querySelector('.header__dropdown');
+    if (!dropdown) {
+      log('Dropdown element not found', 'warn');
+      return;
+    }
+
+    var trigger = dropdown.querySelector('.header__dropdown-trigger');
+    var menu = dropdown.querySelector('.header__dropdown-menu');
+
+    if (!trigger || !menu) {
+      log('Dropdown trigger or menu not found', 'warn');
+      return;
+    }
+
+    var menuItems = menu.querySelectorAll('.header__dropdown-link');
+
+    function openDropdown() {
+      dropdown.classList.add('header__dropdown--open');
+      trigger.setAttribute('aria-expanded', 'true');
+    }
+
+    function closeDropdown() {
+      dropdown.classList.remove('header__dropdown--open');
+      trigger.setAttribute('aria-expanded', 'false');
+    }
+
+    function toggleDropdown() {
+      if (dropdown.classList.contains('header__dropdown--open')) {
+        closeDropdown();
+      } else {
+        openDropdown();
+      }
+    }
+
+    // クリックでトグル
+    trigger.addEventListener('click', function (e) {
+      e.stopPropagation();
+      toggleDropdown();
+    });
+
+    // トリガーのキーボード操作
+    trigger.addEventListener('keydown', function (e) {
+      var key = e.key;
+
+      if (key === 'Enter' || key === ' ') {
+        e.preventDefault();
+        toggleDropdown();
+      } else if (key === 'Escape') {
+        e.preventDefault();
+        closeDropdown();
+        trigger.focus();
+      } else if (key === 'ArrowDown') {
+        e.preventDefault();
+        if (!dropdown.classList.contains('header__dropdown--open')) {
+          openDropdown();
+        }
+        if (menuItems.length > 0) {
+          menuItems[0].focus();
+        }
+      }
+    });
+
+    // メニュー内で Escape
+    menu.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeDropdown();
+        trigger.focus();
+      }
+    });
+
+    // 外側クリックで閉じる
+    document.addEventListener('click', function (e) {
+      if (!dropdown.contains(e.target)) {
+        if (dropdown.classList.contains('header__dropdown--open')) {
+          closeDropdown();
+        }
+      }
+    });
+
+    log('Dropdown initialized');
+  }
+
+  // ==========================================
+  // スクロールハンドラー初期化
+  // ==========================================
+  function initializeScrollHandler() {
+    var header = document.querySelector('.header');
+    if (!header) {
+      log('Header element not found for scroll handler', 'warn');
+      return;
+    }
+
+    var ticking = false;
+
+    function updateHeader() {
+      var scrollY = window.scrollY || window.pageYOffset || 0;
+
+      if (scrollY > CONFIG.scrollThreshold) {
+        header.classList.add('header--scrolled');
+      } else {
+        header.classList.remove('header--scrolled');
+      }
+
+      ticking = false;
+    }
+
+    window.addEventListener('scroll', function () {
+      if (!ticking) {
+        window.requestAnimationFrame(updateHeader);
+        ticking = true;
+      }
+    });
+
+    log('Scroll handler initialized');
+  }
+
+  // ==========================================
+  // モバイルメニュー初期化
+  // ==========================================
+  function initializeMobileMenu() {
+    var hamburger = document.querySelector('.header__hamburger');
+    var nav = document.querySelector('.header__nav');
+
+    if (!hamburger || !nav) {
+      log('Mobile menu elements not found', 'warn');
+      return;
+    }
+
+    function openMenu() {
+      hamburger.classList.add('header__hamburger--active');
+      nav.classList.add('header__nav--active');
+      hamburger.setAttribute('aria-expanded', 'true');
+      hamburger.setAttribute('aria-label', 'メニューを閉じる');
+      log('Mobile menu opened');
+    }
+
+    function closeMenu() {
+      hamburger.classList.remove('header__hamburger--active');
+      nav.classList.remove('header__nav--active');
+      hamburger.setAttribute('aria-expanded', 'false');
+      hamburger.setAttribute('aria-label', 'メニューを開く');
+      log('Mobile menu closed');
+    }
+
+    function toggleMenu() {
+      var isExpanded = hamburger.getAttribute('aria-expanded') === 'true';
+      if (isExpanded) {
+        closeMenu();
+      } else {
+        openMenu();
+      }
+    }
+
+    // クリックでトグル
+    hamburger.addEventListener('click', function (e) {
+      e.stopPropagation();
+      toggleMenu();
+    });
+
+    // メニュー外クリックで閉じる
+    document.addEventListener('click', function (e) {
+      if (!hamburger.contains(e.target) && !nav.contains(e.target)) {
+        if (nav.classList.contains('header__nav--active')) {
+          closeMenu();
+        }
+      }
+    });
+
+    // Escapeキーで閉じる
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' &&
+          nav.classList.contains('header__nav--active')) {
+        closeMenu();
+        hamburger.focus();
+      }
+    });
+
+    log('Mobile menu initialized');
   }
 
   // ==========================================
@@ -93,20 +411,19 @@
   function initializeHeader() {
     log('Initialization started');
 
-    const header = document.querySelector(".header");
-    
-    // ヘッダー要素が存在しない場合
+    var header = document.querySelector('.header');
     if (!header) {
       log('.header element not found', 'error');
       return false;
     }
 
     try {
-      // HTMLを挿入
       header.innerHTML = getHeaderTemplate();
       log('HTML injected successfully');
 
-      // 各機能を初期化
+      // 現在ページのナビリンクをマーク
+      markCurrentNavLink(header);
+
       if (CONFIG.enableDropdown) {
         initializeDropdown();
       }
@@ -115,157 +432,22 @@
         initializeScrollHandler();
       }
 
-      // モバイルメニュー初期化
       initializeMobileMenu();
 
       log('Initialization completed');
       return true;
-
     } catch (error) {
-      log(`Initialization failed: ${error.message}`, 'error');
-      
-      // フォールバック処理
+      log('Initialization failed: ' + error.message, 'error');
+
       try {
         header.innerHTML = getFallbackTemplate();
         log('Fallback template applied', 'warn');
+        markCurrentNavLink(header);
         return true;
       } catch (fallbackError) {
-        log(`Fallback failed: ${fallbackError.message}`, 'error');
+        log('Fallback failed: ' + fallbackError.message, 'error');
         return false;
       }
-    }
-  }
-
-  // ==========================================
-  // ドロップダウン初期化
-  // ==========================================
-  function initializeDropdown() {
-    const dropdown = document.querySelector(".header__dropdown");
-    
-    if (!dropdown) {
-      log('Dropdown element not found', 'warn');
-      return;
-    }
-
-    try {
-      // クリックでトグル
-      document.addEventListener("click", (e) => {
-        if (dropdown.contains(e.target)) {
-          dropdown.classList.toggle("header__dropdown--open");
-          log('Dropdown toggled');
-        } else {
-          dropdown.classList.remove("header__dropdown--open");
-        }
-      });
-
-      // キーボード対応（アクセシビリティ）
-      const dropdownTrigger = dropdown.querySelector(".header__dropdown-trigger");
-      if (dropdownTrigger) {
-        dropdownTrigger.setAttribute('role', 'button');
-        dropdownTrigger.setAttribute('tabindex', '0');
-        
-        dropdownTrigger.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            dropdown.classList.toggle("header__dropdown--open");
-          } else if (e.key === 'Escape') {
-            dropdown.classList.remove("header__dropdown--open");
-          }
-        });
-      }
-
-      log('Dropdown initialized');
-
-    } catch (error) {
-      log(`Dropdown initialization failed: ${error.message}`, 'error');
-    }
-  }
-
-  // ==========================================
-  // スクロールハンドラー初期化
-  // ==========================================
-  function initializeScrollHandler() {
-    const header = document.querySelector(".header");
-    
-    if (!header) {
-      log('Header element not found for scroll handler', 'warn');
-      return;
-    }
-
-    try {
-      let lastScrollY = window.scrollY;
-      let ticking = false;
-
-      function updateHeader() {
-        const scrollY = window.scrollY;
-        
-        if (scrollY > CONFIG.scrollThreshold) {
-          header.classList.add("header--scrolled");
-        } else {
-          header.classList.remove("header--scrolled");
-        }
-
-        lastScrollY = scrollY;
-        ticking = false;
-      }
-
-      // パフォーマンス最適化（requestAnimationFrame使用）
-      window.addEventListener("scroll", () => {
-        if (!ticking) {
-          window.requestAnimationFrame(updateHeader);
-          ticking = true;
-        }
-      });
-
-      log('Scroll handler initialized');
-
-    } catch (error) {
-      log(`Scroll handler initialization failed: ${error.message}`, 'error');
-    }
-  }
-
-  // ==========================================
-  // モバイルメニュー初期化
-  // ==========================================
-  function initializeMobileMenu() {
-    const hamburger = document.querySelector(".header__hamburger");
-    const nav = document.querySelector(".header__nav");
-
-    if (!hamburger || !nav) {
-      log('Mobile menu elements not found', 'warn');
-      return;
-    }
-
-    try {
-      hamburger.addEventListener("click", () => {
-        const isExpanded = hamburger.getAttribute('aria-expanded') === 'true';
-        
-        hamburger.classList.toggle("header__hamburger--active");
-        nav.classList.toggle("header__nav--active");
-        
-        // アクセシビリティ属性更新
-        hamburger.setAttribute('aria-expanded', !isExpanded);
-        hamburger.setAttribute('aria-label', isExpanded ? 'メニューを開く' : 'メニューを閉じる');
-        
-        log(`Mobile menu ${isExpanded ? 'closed' : 'opened'}`);
-      });
-
-      // メニュー外をクリックしたら閉じる
-      document.addEventListener("click", (e) => {
-        if (!hamburger.contains(e.target) && !nav.contains(e.target)) {
-          if (nav.classList.contains("header__nav--active")) {
-            hamburger.classList.remove("header__hamburger--active");
-            nav.classList.remove("header__nav--active");
-            hamburger.setAttribute('aria-expanded', 'false');
-            hamburger.setAttribute('aria-label', 'メニューを開く');
-          }
-        }
-      });
-
-      log('Mobile menu initialized');
-
-    } catch (error) {
-      log(`Mobile menu initialization failed: ${error.message}`, 'error');
     }
   }
 
@@ -273,17 +455,16 @@
   // 実行
   // ==========================================
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      const success = initializeHeader();
+    document.addEventListener('DOMContentLoaded', function () {
+      var success = initializeHeader();
       if (!success) {
         log('Header failed to initialize', 'error');
       }
     });
   } else {
-    const success = initializeHeader();
+    var success = initializeHeader();
     if (!success) {
       log('Header failed to initialize', 'error');
     }
   }
-
 })();

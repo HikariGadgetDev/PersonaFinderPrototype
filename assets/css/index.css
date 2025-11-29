@@ -16,8 +16,8 @@
 
 html {
   scroll-behavior: smooth;
-  overflow-x: hidden;
   width: 100%;
+  /* overflow は書かない */
 }
 
 body {
@@ -28,11 +28,18 @@ body {
   -moz-osx-font-smoothing: grayscale;
   font-size: var(--text-base);
   line-height: var(--leading-normal);
-  overflow-x: hidden;
+
+  overflow-x: hidden;   /* 横スクロール禁止は body にだけ */
+  overflow-y: auto;     /* 縦スクロールは body が担当 */
+
   min-height: 100vh;
   width: 100%;
   padding-top: var(--header-height);
 }
+
+
+
+
 
 /* ========================================
    ユーティリティ: Container
@@ -70,8 +77,9 @@ section {
   transform: translateY(30px);
   transition: opacity 0.8s ease, transform 0.8s ease;
   width: 100%;
-  overflow-x: hidden;
+  /* overflow-x: hidden; ← 入れない */
 }
+
 
 section.section--visible,
 section.visible {

@@ -1,0 +1,215 @@
+{
+  "types": [
+    {
+      "code": "INTJ",
+      "groupCode": "NT",
+      "frequency": "2.1%",
+      "catchphrase": "構想する統率者",
+      "tagline": "構想を描き、実現する設計図を引く",
+      "stack": [
+        { "slot": "主機能", "code": "Ni" },
+        { "slot": "補助機能", "code": "Te" },
+        { "slot": "第三機能", "code": "Fi" },
+        { "slot": "劣等機能", "code": "Se" }
+      ]
+    },
+    {
+      "code": "INTP",
+      "groupCode": "NT",
+      "frequency": "3.3%",
+      "catchphrase": "理の探求者",
+      "tagline": "概念を分解し、その原理から再構築する",
+      "stack": [
+        { "slot": "主機能", "code": "Ti" },
+        { "slot": "補助機能", "code": "Ne" },
+        { "slot": "第三機能", "code": "Si" },
+        { "slot": "劣等機能", "code": "Fe" }
+      ]
+    },
+    {
+      "code": "ENTJ",
+      "groupCode": "NT",
+      "frequency": "1.8%",
+      "catchphrase": "指揮する改革者",
+      "tagline": "目標を定め、組織を導いて実現する",
+      "stack": [
+        { "slot": "主機能", "code": "Te" },
+        { "slot": "補助機能", "code": "Ni" },
+        { "slot": "第三機能", "code": "Se" },
+        { "slot": "劣等機能", "code": "Fi" }
+      ]
+    },
+    {
+      "code": "ENTP",
+      "groupCode": "NT",
+      "frequency": "3.2%",
+      "catchphrase": "発想の開拓者",
+      "tagline": "常識を越え、発想で新しい景色を描く",
+      "stack": [
+        { "slot": "主機能", "code": "Ne" },
+        { "slot": "補助機能", "code": "Ti" },
+        { "slot": "第三機能", "code": "Fe" },
+        { "slot": "劣等機能", "code": "Si" }
+      ]
+    },
+
+    {
+      "code": "INFJ",
+      "groupCode": "NF",
+      "frequency": "1.5%",
+      "catchphrase": "心を照らす語り手",
+      "tagline": "他者の想いに耳を傾け、静かに希望を灯す",
+      "stack": [
+        { "slot": "主機能", "code": "Ni" },
+        { "slot": "補助機能", "code": "Fe" },
+        { "slot": "第三機能", "code": "Ti" },
+        { "slot": "劣等機能", "code": "Se" }
+      ]
+    },
+    {
+      "code": "INFP",
+      "groupCode": "NF",
+      "frequency": "4.4%",
+      "catchphrase": "理想を紡ぐ詩人",
+      "tagline": "内的価値を信じ、理想を現実に織り込む",
+      "stack": [
+        { "slot": "主機能", "code": "Fi" },
+        { "slot": "補助機能", "code": "Ne" },
+        { "slot": "第三機能", "code": "Si" },
+        { "slot": "劣等機能", "code": "Te" }
+      ]
+    },
+    {
+      "code": "ENFJ",
+      "groupCode": "NF",
+      "frequency": "2.5%",
+      "catchphrase": "共感の統率者",
+      "tagline": "共感で人を照らし、共に未来を描く",
+      "stack": [
+        { "slot": "主機能", "code": "Fe" },
+        { "slot": "補助機能", "code": "Ni" },
+        { "slot": "第三機能", "code": "Se" },
+        { "slot": "劣等機能", "code": "Ti" }
+      ]
+    },
+    {
+      "code": "ENFP",
+      "groupCode": "NF",
+      "frequency": "8.1%",
+      "catchphrase": "熱狂する発見者",
+      "tagline": "感情で世界を照らし、新しい景色を描く",
+      "stack": [
+        { "slot": "主機能", "code": "Ne" },
+        { "slot": "補助機能", "code": "Fi" },
+        { "slot": "第三機能", "code": "Te" },
+        { "slot": "劣等機能", "code": "Si" }
+      ]
+    },
+
+    {
+      "code": "ISTJ",
+      "groupCode": "ST",
+      "frequency": "11.6%",
+      "catchphrase": "秩序を築く実務者",
+      "tagline": "事実と手順を守り、秩序を保つ",
+      "stack": [
+        { "slot": "主機能", "code": "Si" },
+        { "slot": "補助機能", "code": "Te" },
+        { "slot": "第三機能", "code": "Fi" },
+        { "slot": "劣等機能", "code": "Ne" }
+      ]
+    },
+    {
+      "code": "ESTJ",
+      "groupCode": "ST",
+      "frequency": "8.7%",
+      "catchphrase": "秩序の実行者",
+      "tagline": "規律を重んじ、物事を確実に進める",
+      "stack": [
+        { "slot": "主機能", "code": "Te" },
+        { "slot": "補助機能", "code": "Si" },
+        { "slot": "第三機能", "code": "Ne" },
+        { "slot": "劣等機能", "code": "Fi" }
+      ]
+    },
+    {
+      "code": "ISTP",
+      "groupCode": "ST",
+      "frequency": "5.4%",
+      "catchphrase": "瞬間に挑む実験者",
+      "tagline": "状況を瞬時に読み、最適な行動で応える",
+      "stack": [
+        { "slot": "主機能", "code": "Ti" },
+        { "slot": "補助機能", "code": "Se" },
+        { "slot": "第三機能", "code": "Ni" },
+        { "slot": "劣等機能", "code": "Fe" }
+      ]
+    },
+    {
+      "code": "ESTP",
+      "groupCode": "ST",
+      "frequency": "4.3%",
+      "catchphrase": "直感で動く実践者",
+      "tagline": "状況を掴み取り、瞬時に行動へ移す",
+      "stack": [
+        { "slot": "主機能", "code": "Se" },
+        { "slot": "補助機能", "code": "Ti" },
+        { "slot": "第三機能", "code": "Fe" },
+        { "slot": "劣等機能", "code": "Ni" }
+      ]
+    },
+
+    {
+      "code": "ISFJ",
+      "groupCode": "SF",
+      "frequency": "13.8%",
+      "catchphrase": "優しさを紡ぐ守り手",
+      "tagline": "小さな変化に気づき、ずっと支え続ける",
+      "stack": [
+        { "slot": "主機能", "code": "Si" },
+        { "slot": "補助機能", "code": "Fe" },
+        { "slot": "第三機能", "code": "Ti" },
+        { "slot": "劣等機能", "code": "Ne" }
+      ]
+    },
+    {
+      "code": "ESFJ",
+      "groupCode": "SF",
+      "frequency": "12.3%",
+      "catchphrase": "思いやりの調整者",
+      "tagline": "周囲を思いやり、安心できる場を整える",
+      "stack": [
+        { "slot": "主機能", "code": "Fe" },
+        { "slot": "補助機能", "code": "Si" },
+        { "slot": "第三機能", "code": "Ne" },
+        { "slot": "劣等機能", "code": "Ti" }
+      ]
+    },
+    {
+      "code": "ISFP",
+      "groupCode": "SF",
+      "frequency": "8.8%",
+      "catchphrase": "感覚の美術家",
+      "tagline": "感性のままに感じ、静かに美を表す",
+      "stack": [
+        { "slot": "主機能", "code": "Fi" },
+        { "slot": "補助機能", "code": "Se" },
+        { "slot": "第三機能", "code": "Ni" },
+        { "slot": "劣等機能", "code": "Te" }
+      ]
+    },
+    {
+      "code": "ESFP",
+      "groupCode": "SF",
+      "frequency": "8.5%",
+      "catchphrase": "場を明るくする表現者",
+      "tagline": "感情のままに動き、場に活力を伝える",
+      "stack": [
+        { "slot": "主機能", "code": "Se" },
+        { "slot": "補助機能", "code": "Fi" },
+        { "slot": "第三機能", "code": "Te" },
+        { "slot": "劣等機能", "code": "Ni" }
+      ]
+    }
+  ]
+}
