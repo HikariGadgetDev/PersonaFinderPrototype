@@ -37,6 +37,7 @@
   <link rel="stylesheet" href="assets/css/variables.css">
   <link rel="stylesheet" href="assets/css/header.css">
   <link rel="stylesheet" href="assets/css/index.css">
+  <link rel="stylesheet" href="assets/css/slider.css">
   <link rel="stylesheet" href="assets/css/footer.css">
 
   <!-- =========================================
@@ -625,13 +626,320 @@
       </div>
     </section>
 
-  </main>
-
+</main>
   <!-- =========================================
        フッター（footer.js で動的挿入）
   ========================================== -->
+
   <div class="footer"></div>
 
+<!-- =========================================
+     SilentGuardian BOT対策（デバッグモード対応版）
+========================================== -->
+<script src="assets/js/detector.js"></script>
+<script>
+  (function() {
+    'use strict';
+
+    // ==========================================
+    // デバッグモード判定
+    // ==========================================
+    var isDebugMode = (function() {
+      try {
+        // localhost または ?guardianDebug=true
+        var host = location.hostname;
+        if (host === 'localhost' || host === '127.0.0.1') return true;
+        
+        var params = new URLSearchParams(location.search);
+        if (params.get('guardianDebug') === 'true') return true;
+      } catch (e) {
+        // ignore
+      }
+      return false;
+    })();
+
+    // ==========================================
+    // デバッグログ関数
+    // ==========================================
+    function debugLog(message, level, data) {
+      if (!isDebugMode) return;
+      
+      var prefix = '[Guardian Debug]';
+      var logger = console[level || 'log'] || console.log;
+      
+      if (data) {
+        logger(prefix + ' ' + message, data);
+      } else {
+        logger(prefix + ' ' + message);
+      }
+    }
+
+    // ==========================================
+    // Guardian初期化
+    // ==========================================
+    var guardian = createGuardian('naive', {
+      debug: isDebugMode,
+      
+      onSuspicionChange: function(info) {
+        // 常に表示（重要な情報）
+        console.log('[Guardian] Suspicion:', info.new, '(+' + info.delta + ')', info.reason);
+        
+        // デバッグモード: 詳細情報
+        debugLog('Suspicion details:', 'info', {
+          previous: info.old,
+          current: info.new,
+          delta: info.delta,
+          reason: info.reason,
+          timestamp: new Date().toISOString()
+        });
+      },
+      
+      onBotDetected: function(info) {
+        // 常に表示（重要な情報）
+        console.warn('[Guardian] BOT DETECTED:', info);
+        
+        // デバッグモード: 詳細情報
+        debugLog('BOT detection details:', 'warn', {
+          confidence: info.confidence,
+          reason: info.reason,
+          detail: info.detail,
+          timestamp: new Date().toISOString()
+        });
+        
+        if (info.confidence === 'high') {
+          // 診断ボタンを無効化
+          document.querySelectorAll('.mode-card, .cta').forEach(function(el) {
+            el.style.pointerEvents = 'none';
+            el.style.opacity = '0.5';
+          });
+          
+          // 警告表示
+          var warning = document.createElement('div');
+          warning.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#ff6b6b;color:white;padding:16px 24px;border-radius:8px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+          warning.textContent = '⚠️ 異常なアクセスパターンが検出されました。しばらくしてから再度お試しください。';
+          document.body.appendChild(warning);
+          
+          setTimeout(function() {
+            if (warning.parentNode) {
+              warning.parentNode.removeChild(warning);
+            }
+          }, 5000);
+        }
+      },
+      
+      onChallengeStart: function(info) {
+        // 常に表示
+        console.log('[Guardian] Challenge started. Score:', info.score);
+        
+        // デバッグモード: 詳細情報
+        debugLog('Challenge start details:', 'info', {
+          suspicionScore: info.score,
+          timestamp: new Date().toISOString()
+        });
+      },
+      
+      onChallengeEnd: function(result) {
+        // 常に表示
+        console.log('[Guardian] Challenge result:', result.passed ? 'PASSED' : 'FAILED');
+        
+        // デバッグモード: 詳細情報
+        debugLog('Challenge end details:', 'info', {
+          passed: result.passed,
+          method: result.method,
+          duration: result.duration,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
+    // ==========================================
+    // 行動監視開始
+    // ==========================================
+    var behaviorStats = {
+      mouseEvents: 0,
+      keyboardEvents: 0,
+      scrollEvents: 0,
+      startTime: Date.now()
+    };
+
+    document.addEventListener('mousemove', function(e) {
+      guardian.trackMouse(e);
+      
+      if (isDebugMode) {
+        behaviorStats.mouseEvents++;
+      }
+    }, { passive: true });
+
+    document.addEventListener('keydown', function(e) {
+      guardian.trackKeyboard(e);
+      
+      if (isDebugMode) {
+        behaviorStats.keyboardEvents++;
+      }
+    }, { passive: true });
+
+    document.addEventListener('scroll', function() {
+      guardian.trackScroll();
+      
+      if (isDebugMode) {
+        behaviorStats.scrollEvents++;
+      }
+    }, { passive: true });
+
+    // ==========================================
+    // デバッグモード: 定期統計出力
+    // ==========================================
+    if (isDebugMode) {
+      var statsInterval = setInterval(function() {
+        var stats = guardian.getStats ? guardian.getStats() : null;
+        var elapsed = Math.floor((Date.now() - behaviorStats.startTime) / 1000);
+        
+        debugLog('=== Periodic Stats ===', 'info');
+        debugLog('Time elapsed: ' + elapsed + 's', 'info');
+        debugLog('Behavior tracking:', 'info', {
+          mouseEvents: behaviorStats.mouseEvents,
+          keyboardEvents: behaviorStats.keyboardEvents,
+          scrollEvents: behaviorStats.scrollEvents
+        });
+        
+        if (stats) {
+          debugLog('Guardian stats:', 'info', stats);
+        }
+        
+        debugLog('======================', 'info');
+      }, 15000); // 15秒ごと
+
+      // ページ離脱時にクリーンアップ
+      window.addEventListener('beforeunload', function() {
+        clearInterval(statsInterval);
+        debugLog('Stats interval cleared', 'info');
+      });
+      
+      debugLog('Stats logging enabled (15s interval)', 'info');
+    }
+
+    // ==========================================
+    // 診断ボタンクリック時の検証
+    // ==========================================
+    document.addEventListener('click', function(e) {
+      var target = e.target.closest('.mode-card, .cta');
+      if (!target) return;
+
+      var href = target.getAttribute('href');
+      
+      // href がない、または # だけの場合は無視
+      if (!href || href === '#') return;
+      
+      // finder へのリンク「だけ」検証する
+      var isFinder = href.includes('finder') || href.includes('/finder');
+      
+      if (!isFinder) {
+        debugLog('Non-finder link clicked, allowing: ' + href, 'info');
+        return;
+      }
+
+      // finder の場合のみ検証
+      e.preventDefault();
+      
+      console.log('[Guardian] Verify triggered for finder link:', href);
+      debugLog('Starting verification...', 'info', {
+        href: href,
+        timestamp: new Date().toISOString()
+      });
+      
+      var verifyStartTime = Date.now();
+      
+      guardian.verify().then(function(result) {
+        var verifyDuration = Date.now() - verifyStartTime;
+        
+        console.log('[Guardian] Verify result:', result);
+        
+        // デバッグモード: 詳細情報
+        debugLog('Verification completed:', 'info', {
+          result: result,
+          duration: verifyDuration + 'ms',
+          timestamp: new Date().toISOString()
+        });
+        
+        if (result.isBot) {
+          console.warn('[Guardian] Access denied - BOT detected');
+          debugLog('Access denied:', 'warn', {
+            reason: result.reason || 'BOT detected',
+            confidence: result.confidence
+          });
+          
+          alert('異常なアクセスパターンが検出されました。\n\nしばらく待ってから再度お試しください。');
+          return;
+        }
+        
+        console.log('[Guardian] Access granted - Human verified');
+        debugLog('Access granted, redirecting to: ' + href, 'info');
+        
+        window.location.href = href;
+      }).catch(function(error) {
+        console.error('[Guardian] Verify error:', error);
+        debugLog('Verification error:', 'error', {
+          error: error.message || error,
+          stack: error.stack
+        });
+        
+        // エラー時は通常通りアクセス許可
+        debugLog('Error occurred, allowing access anyway', 'warn');
+        window.location.href = href;
+      });
+    });
+
+    // ==========================================
+    // 初期化完了
+    // ==========================================
+    console.log('[Guardian] Initialized and monitoring');
+    
+    if (isDebugMode) {
+      debugLog('=== Guardian Debug Mode Enabled ===', 'info');
+      debugLog('Debug mode active', 'info');
+      debugLog('Access console for detailed logs', 'info');
+      debugLog('Stats will be logged every 15 seconds', 'info');
+      debugLog('===================================', 'info');
+      
+      // デバッグ用グローバル関数を公開
+      window.guardianDebug = {
+        getStats: function() {
+          if (guardian.getStats) {
+            console.table(guardian.getStats());
+          } else {
+            console.log('getStats not available');
+          }
+        },
+        getBehaviorStats: function() {
+          console.table(behaviorStats);
+        },
+        forceVerify: function() {
+          console.log('Forcing verification...');
+          guardian.verify().then(function(result) {
+            console.log('Force verify result:', result);
+          });
+        },
+        reset: function() {
+          console.log('Resetting behavior stats...');
+          behaviorStats.mouseEvents = 0;
+          behaviorStats.keyboardEvents = 0;
+          behaviorStats.scrollEvents = 0;
+          behaviorStats.startTime = Date.now();
+          console.log('Stats reset');
+        }
+      };
+      
+      debugLog('Debug utilities available:', 'info');
+      debugLog('  guardianDebug.getStats() - Show current stats', 'info');
+      debugLog('  guardianDebug.getBehaviorStats() - Show behavior tracking', 'info');
+      debugLog('  guardianDebug.forceVerify() - Force verification test', 'info');
+      debugLog('  guardianDebug.reset() - Reset behavior stats', 'info');
+    }
+  })();
+</script>
+  <!-- =========================================
+       通常のJavaScript
+  ========================================== -->
   <script src="assets/js/header.js" defer></script>
   <script src="assets/js/footer.js" defer></script>
   <script src="assets/js/card-renderer.js" defer></script>

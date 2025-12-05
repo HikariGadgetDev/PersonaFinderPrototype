@@ -1,12 +1,13 @@
 // ==========================================
-// function.js - 完全版
+// function.js - 認知機能詳細ページ V2
+// （新JSON構造 + クイックチェック対応）
 // ==========================================
 
 const params = new URLSearchParams(location.search);
-const code = (params.get('code') || params.get('func') || 'fe').toLowerCase();
+const code = (params.get('code') || params.get('func') || 'ni').toLowerCase();
 
 // ==========================================
-// ユーティリティ関数
+// ユーティリティ
 // ==========================================
 
 function e(str) {
@@ -14,48 +15,13 @@ function e(str) {
   return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-function formatTextToElements(str) {
-  if (!str) return [];
-  
-  const elements = [];
-  const paragraphs = str.split(/\n\n+/);
-  
-  paragraphs.forEach(p => {
-    const para = document.createElement('p');
-    const lines = p.split('\n');
-    
-    lines.forEach((line, i) => {
-      const parts = line.split(/\*\*(.+?)\*\*/g);
-      parts.forEach((part, j) => {
-        if (j % 2 === 1) {
-          const strong = document.createElement('strong');
-          strong.textContent = part;
-          para.appendChild(strong);
-        } else {
-          para.appendChild(document.createTextNode(part));
-        }
-      });
-      
-      if (i < lines.length - 1) {
-        para.appendChild(document.createElement('br'));
-      }
-    });
-    
-    elements.push(para);
-  });
-  
-  return elements;
+    .replace(/>/g, '&gt;');
 }
 
 function createElement(tag, className, content) {
   const el = document.createElement(tag);
   if (className) el.className = className;
-  if (content) {
+  if (content !== undefined && content !== null) {
     if (typeof content === 'string') {
       el.textContent = content;
     } else if (Array.isArray(content)) {
@@ -67,851 +33,616 @@ function createElement(tag, className, content) {
   return el;
 }
 
-function createInfoBox(title, content, isWarning = false) {
-  const box = createElement('div', isWarning ? 'warning-box' : 'info-box');
-  
-  const titleEl = createElement('div', isWarning ? 'warning-title' : 'info-title', title);
-  box.appendChild(titleEl);
-  
-  const contentEl = createElement('div', isWarning ? 'warning-content' : 'info-content');
-  formatTextToElements(content).forEach(el => contentEl.appendChild(el));
-  box.appendChild(contentEl);
-  
-  return box;
+/**
+ * **〜** → <strong> に変換
+ * 空行2つで段落、1つで <br>
+ */
+function formatTextToElements(str) {
+  if (!str) return [];
+  const elements = [];
+  const paragraphs = String(str).split(/\n\n+/);
+
+  paragraphs.forEach(p => {
+    const para = document.createElement('p');
+    const lines = p.split('\n');
+
+    lines.forEach((line, i) => {
+      const parts = line.split(/\*\*(.+?)\*\*/g);
+      parts.forEach((part, j) => {
+        if (!part) return;
+        if (j % 2 === 1) {
+          const strong = document.createElement('strong');
+          strong.textContent = part;
+          para.appendChild(strong);
+        } else {
+          para.appendChild(document.createTextNode(part));
+        }
+      });
+
+      if (i < lines.length - 1) {
+        para.appendChild(document.createElement('br'));
+      }
+    });
+
+    elements.push(para);
+  });
+
+  return elements;
 }
 
 function createSection(id, title, icon = '') {
   const section = createElement('section', 'section');
   section.id = id;
-  
-  const titleEl = createElement('h2', 'section__title', `${icon} ${title}`);
-  section.appendChild(titleEl);
-  
+  const heading = createElement(
+    'h2',
+    'section__title',
+    `${icon ? icon + ' ' : ''}${title}`
+  );
+  section.appendChild(heading);
   return section;
 }
 
-function observeSections() {
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('section--visible');
-      }
-    });
-  }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
-
-  document.querySelectorAll('.section').forEach(section => {
-    observer.observe(section);
-  });
+function createInfoBox(title, content, isWarning = false) {
+  const box = createElement('div', isWarning ? 'warning-box' : 'info-box');
+  const titleEl = createElement(
+    'div',
+    isWarning ? 'warning-title' : 'info-title',
+    title
+  );
+  const bodyEl = createElement(
+    'div',
+    isWarning ? 'warning-content' : 'info-content'
+  );
+  formatTextToElements(content).forEach(el => bodyEl.appendChild(el));
+  box.appendChild(titleEl);
+  box.appendChild(bodyEl);
+  return box;
 }
 
 // ==========================================
-// セクション生成関数
+// ヒーロー
 // ==========================================
 
-function renderOverview(data, tocItems, sectionId) {
-  if (!data.overview) return { fragment: null, sectionId };
-  
-  const id = `section-${sectionId++}`;
-  tocItems.push({ id, title: 'この機能の本質' });
-  
-  const section = createSection(id, 'この機能の本質');
-  
-  const lead = createElement('div', 'lead');
-  formatTextToElements(data.overview.short || data.overview.oneLiner || '')
-    .forEach(el => lead.appendChild(el));
-  section.appendChild(lead);
-  
-  if (data.overview.long) {
-    const prose = createElement('div', 'prose');
-    
-    const titleMap = {
-      essence: '本質',
-      mechanism: '仕組み',
-      comparison: '他機能との違い',
-      jungView: 'Jungの見解'
-    };
-    
-    for (const [key, value] of Object.entries(data.overview.long)) {
-      const h3 = createElement('h3', null, titleMap[key] || key);
-      prose.appendChild(h3);
-      
-      formatTextToElements(value).forEach(el => prose.appendChild(el));
+function updateHero(data) {
+  const funcCode =
+    (data.function || data.code || code || '').toUpperCase();
+  const name =
+    data.name || data.meta?.displayName || '認知機能';
+
+  const tagline =
+    data.meta?.summaryTagline ||
+    data.short ||
+    '認知機能の深層分析';
+
+  const tags =
+    data.meta?.tags ||
+    data.tags ||
+    [];
+
+  const codeEl = document.getElementById('hero-code');
+  const nameEl = document.getElementById('hero-name');
+  const taglineEl = document.getElementById('hero-tagline');
+  const tagsEl = document.getElementById('hero-tags');
+
+  if (codeEl) codeEl.textContent = funcCode;
+  if (nameEl) nameEl.textContent = name;
+  if (taglineEl) taglineEl.textContent = tagline;
+
+  if (tagsEl) {
+    tagsEl.innerHTML = '';
+    if (Array.isArray(tags) && tags.length) {
+      const frag = document.createDocumentFragment();
+      tags.forEach(tag => {
+        const span = createElement('span', 'tag', tag);
+        frag.appendChild(span);
+      });
+      tagsEl.appendChild(frag);
     }
-    
-    section.appendChild(prose);
   }
-  
-  return { fragment: section, sectionId };
 }
 
-function renderCognitiveScience(data, tocItems, sectionId) {
-  if (!data.cognitiveScience) return { fragment: null, sectionId };
-  
-  const id = `section-${sectionId++}`;
-  tocItems.push({ id, title: '脳科学から見たメカニズム' });
-  
-  const section = createSection(id, '脳科学から見たメカニズム', '🧠');
-  
-  if (data.cognitiveScience.scientificDisclaimer) {
-    const disc = data.cognitiveScience.scientificDisclaimer;
-    section.appendChild(createInfoBox(
-      `⚠️ ${disc.title}`,
-      disc.content,
-      true
-    ));
-  }
-  
-  if (data.cognitiveScience.neuralBasis) {
-    const prose = createElement('div', 'prose');
-    formatTextToElements(data.cognitiveScience.neuralBasis)
-      .forEach(el => prose.appendChild(el));
-    section.appendChild(prose);
-  }
-  
-  if (data.cognitiveScience.relatedProcesses && Array.isArray(data.cognitiveScience.relatedProcesses)) {
-    const h3 = createElement('h3', null, '関連する認知プロセス');
-    const prose = createElement('div', 'prose');
-    prose.appendChild(h3);
-    section.appendChild(prose);
-    
-    data.cognitiveScience.relatedProcesses.forEach(proc => {
-      const content = proc.research 
-        ? `${proc.relation}\n\n参考: ${proc.research}`
-        : proc.relation;
-      section.appendChild(createInfoBox(proc.process, content));
-    });
-  }
-  
-  if (data.cognitiveScience.limitations) {
-    const h3 = createElement('h3', null, 'この機能の限界と補完方法');
-    const prose = createElement('div', 'prose');
-    prose.appendChild(h3);
-    section.appendChild(prose);
-    
-    section.appendChild(createInfoBox(
-      '⚠ 単独使用時の潜在的な懸念事項',
-      data.cognitiveScience.limitations.scientificCaveats || '',
-      true
-    ));
-    
-    if (data.cognitiveScience.limitations.howToCompensate) {
-      const comp = data.cognitiveScience.limitations.howToCompensate;
-      const box = createElement('div', 'info-box');
-      
-      const title = createElement('div', 'info-title', `💡 ${comp.title || '限界を補う方法'}`);
-      box.appendChild(title);
-      
-      const content = createElement('div', 'info-content');
-      
-      if (comp.strategies && Array.isArray(comp.strategies)) {
-        comp.strategies.forEach(strat => {
-          const stratDiv = createElement('div');
-          stratDiv.style.marginBottom = '1.5rem';
-          
-          const limitP = createElement('p');
-          const limitStrong = createElement('strong', null, `課題: ${strat.limitation}`);
-          limitP.appendChild(limitStrong);
-          stratDiv.appendChild(limitP);
-          
-          const funcP = createElement('p');
-          funcP.innerHTML = `補完機能: <strong>${e(strat.compensatingFunction)}</strong>`;
-          stratDiv.appendChild(funcP);
-          
-          formatTextToElements(strat.integration).forEach(el => stratDiv.appendChild(el));
-          content.appendChild(stratDiv);
-        });
-      }
-      
-      if (comp.balancedApproach) {
-        const divider = createElement('div');
-        divider.style.marginTop = '1.5rem';
-        divider.style.paddingTop = '1rem';
-        divider.style.borderTop = '1px solid var(--border)';
-        
-        const balanceP = createElement('p');
-        const balanceStrong = createElement('strong', null, 'バランスの取れたアプローチ:');
-        balanceP.appendChild(balanceStrong);
-        divider.appendChild(balanceP);
-        
-        formatTextToElements(comp.balancedApproach).forEach(el => divider.appendChild(el));
-        content.appendChild(divider);
-      }
-      
-      box.appendChild(content);
-      section.appendChild(box);
-    }
-  }
-  
-  return { fragment: section, sectionId };
-}
+// ==========================================
+// セクションレンダラ
+// ==========================================
 
-function renderCharacteristics(data, tocItems, sectionId) {
-  if (!data.characteristics || !Array.isArray(data.characteristics)) {
-    return { fragment: null, sectionId };
-  }
-  
-  const id = `section-${sectionId++}`;
-  tocItems.push({ id, title: '5つの特性' });
-  
-  const section = createSection(id, '5つの特性', '✨');
-  
-  const grid = createElement('div', 'characteristics');
-  
-  data.characteristics.forEach((char, i) => {
-    const card = createElement('div', 'characteristic-card');
-    
-    const titleDiv = createElement('div', 'characteristic-title');
-    const icon = createElement('span', 'characteristic-icon', String(i + 1));
-    const titleText = createElement('span', null, char.title || '');
-    titleDiv.appendChild(icon);
-    titleDiv.appendChild(titleText);
-    card.appendChild(titleDiv);
-    
-    const desc = createElement('p', 'characteristic-desc');
-    formatTextToElements(char.description || '').forEach(el => {
-      while (el.firstChild) {
-        desc.appendChild(el.firstChild);
-      }
-    });
-    card.appendChild(desc);
-    
-    if (char.example) {
-      const example = createElement('div', 'characteristic-example');
-      example.innerHTML = `💡 例: ${e(char.example)}`;
-      card.appendChild(example);
-    }
-    
-    if (char.mechanism) {
-      const mechanism = createElement('p');
-      mechanism.style.marginTop = '0.75rem';
-      mechanism.style.fontSize = '14px';
-      mechanism.style.color = 'var(--text-muted)';
-      mechanism.innerHTML = `<em>🔬 仕組み: ${e(char.mechanism)}</em>`;
-      card.appendChild(mechanism);
-    }
-    
-    grid.appendChild(card);
-  });
-  
-  section.appendChild(grid);
-  return { fragment: section, sectionId };
-}
+// 1. ざっくりした姿（short + overview.essence + quickCheck）
+function renderIntroSection(data, tocItems, sectionId) {
+  const hasOverview =
+    data.short || data.overview?.essence || (data.quickCheck && data.quickCheck.length);
+  if (!hasOverview) return { fragment: null, sectionId };
 
-function renderQuickCheck(data, tocItems, sectionId) {
-  const quiz = data.userGuidance?.interactiveElement?.quickCheck;
-  if (!quiz) return { fragment: null, sectionId, quiz: null };
-  
   const id = `section-${sectionId++}`;
-  tocItems.push({ id, title: '簡易チェック' });
-  
-  const section = createSection(id, quiz.title || '簡易チェック', '🎯');
-  
-  const quizCard = createElement('div', 'quiz-card');
-  
-  const title = createElement('div', 'quiz-title', quiz.subtitle || '以下の項目にいくつ当てはまりますか?');
-  quizCard.appendChild(title);
-  
-  const subtitle = createElement('div', 'quiz-subtitle', quiz.disclaimer || '');
-  quizCard.appendChild(subtitle);
-  
-  if (quiz.questions && Array.isArray(quiz.questions)) {
-    quiz.questions.forEach((q, i) => {
-      const questionDiv = createElement('div', 'quiz-question');
-      
+  tocItems.push({ id, title: 'この認知機能のざっくりした姿' });
+
+  const section = createSection(id, 'この認知機能のざっくりした姿', '📌');
+
+  // リードテキスト
+  if (data.short || data.overview?.essence) {
+    const lead = createElement('div', 'lead');
+    const text = [data.short, data.overview?.essence].filter(Boolean).join('\n\n');
+    formatTextToElements(text).forEach(el => lead.appendChild(el));
+    section.appendChild(lead);
+  }
+
+  // クイックチェック（JSON側で好きなだけ項目増やせる）
+  if (Array.isArray(data.quickCheck) && data.quickCheck.length) {
+    const quizCard = createElement('div', 'quiz-card');
+
+    const title = createElement('div', 'quiz-title', '簡易チェック');
+    const subtitle = createElement(
+      'div',
+      'quiz-subtitle',
+      'あてはまるものにチェックを入れてみてください。'
+    );
+    quizCard.appendChild(title);
+    quizCard.appendChild(subtitle);
+
+    const list = createElement('ul', 'quiz-list');
+    const checkboxes = [];
+
+    data.quickCheck.forEach((item, idx) => {
+      const li = createElement('li', 'quiz-item');
+      const label = createElement('label', 'quiz-label');
+
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
-      checkbox.id = `q${i}`;
       checkbox.className = 'quiz-checkbox';
-      checkbox.dataset.weight = q.weight || 1;
-      questionDiv.appendChild(checkbox);
-      
-      const label = document.createElement('label');
-      label.htmlFor = `q${i}`;
-      label.className = 'quiz-label';
-      label.textContent = q.text;
-      questionDiv.appendChild(label);
-      
-      quizCard.appendChild(questionDiv);
-    });
-  }
-  
-  const result = createElement('div', 'quiz-result');
-  result.id = 'quiz-result';
-  
-  const score = createElement('div', 'quiz-score', `0/${quiz.questions.length}`);
-  score.id = 'quiz-score';
-  result.appendChild(score);
-  
-  const interpretation = createElement('div');
-  interpretation.id = 'quiz-interpretation';
-  result.appendChild(interpretation);
-  
-  quizCard.appendChild(result);
-  section.appendChild(quizCard);
-  
-  return { fragment: section, sectionId, quiz };
-}
+      checkbox.id = `quiz-q-${idx}`;
+      checkboxes.push(checkbox);
 
-function renderStrengthsWeaknesses(data, tocItems, sectionId) {
-  const id = `section-${sectionId++}`;
-  tocItems.push({ id, title: '強みと弱み' });
-  
-  const section = createSection(id, '強みと弱み', '⚖️');
-  
-  const grid = createElement('div', 'strengths-weaknesses');
-  
-  const strengthCard = createElement('div', 'sw-card');
-  const strengthTitle = createElement('div', 'sw-title');
-  strengthTitle.innerHTML = '<span>✓</span><span>強み</span>';
-  strengthCard.appendChild(strengthTitle);
-  
-  const strengthList = createElement('ul', 'sw-list strengths');
-  if (data.strengths && Array.isArray(data.strengths)) {
-    data.strengths.forEach(s => {
-      const li = document.createElement('li');
-      formatTextToElements(s).forEach(el => {
-        while (el.firstChild) {
-          li.appendChild(el.firstChild);
+      const textSpan = createElement('span', 'quiz-text');
+      formatTextToElements(item).forEach(el => {
+        while (el.firstChild) textSpan.appendChild(el.firstChild);
+      });
+
+      label.htmlFor = checkbox.id;
+      label.appendChild(checkbox);
+      label.appendChild(textSpan);
+      li.appendChild(label);
+      list.appendChild(li);
+    });
+
+    quizCard.appendChild(list);
+
+    // 結果表示
+    const result = createElement('div', 'quiz-result');
+    const scoreEl = createElement('div', 'quiz-score', `0/${data.quickCheck.length}`);
+    const interpEl = createElement(
+      'div',
+      'quiz-interpretation',
+      'チェック数に応じて、この機能との距離感の目安を表示します。'
+    );
+    result.appendChild(scoreEl);
+    result.appendChild(interpEl);
+    quizCard.appendChild(result);
+
+    // 判定ロジック（ざっくり「主機能 / 補助〜第三 / 周辺」）
+    const updateResult = () => {
+      const total = data.quickCheck.length;
+      const checked = checkboxes.filter(cb => cb.checked).length;
+      scoreEl.textContent = `${checked}/${total}`;
+
+      let message;
+
+      if (checked === 0) {
+        message = 'このページの記述は「そこまで自分っぽくない」と感じるかもしれません。他機能のページも覗いてみてください。';
+      } else {
+        const ratio = checked / total;
+
+        if (ratio >= 0.7) {
+          message = 'この機能を「主機能」または「補助機能」として強く使っている可能性があります。日常の判断や認識の軸になっているかもしれません。';
+        } else if (ratio >= 0.4) {
+          message = 'この機能は、補助・第三あたりでそこそこ使われている可能性があります。他の機能とのバランスも合わせて見ると、スタックの輪郭が見えやすくなります。';
+        } else {
+          message = 'この機能は、影響はあるもののメインの軸というより「背景」で働いているかもしれません。別の機能のページにも強く共感する可能性があります。';
         }
-      });
-      strengthList.appendChild(li);
+      }
+
+      interpEl.textContent = message;
+      result.classList.add('quiz-result--visible');
+    };
+
+    checkboxes.forEach(cb => {
+      cb.addEventListener('change', updateResult);
     });
+
+    section.appendChild(quizCard);
   }
-  strengthCard.appendChild(strengthList);
-  grid.appendChild(strengthCard);
-  
-  const weaknessCard = createElement('div', 'sw-card');
-  const weaknessTitle = createElement('div', 'sw-title');
-  weaknessTitle.innerHTML = '<span>⚠</span><span>弱み(補完で改善可能)</span>';
-  weaknessCard.appendChild(weaknessTitle);
-  
-  const weaknessList = createElement('ul', 'sw-list weaknesses');
-  if (data.weaknesses && Array.isArray(data.weaknesses)) {
-    data.weaknesses.forEach(w => {
-      const li = document.createElement('li');
-      formatTextToElements(w).forEach(el => {
-        while (el.firstChild) {
-          li.appendChild(el.firstChild);
-        }
-      });
-      weaknessList.appendChild(li);
-    });
-  }
-  weaknessCard.appendChild(weaknessList);
-  grid.appendChild(weaknessCard);
-  
-  section.appendChild(grid);
+
   return { fragment: section, sectionId };
 }
 
-function renderRealLifeExamples(data, tocItems, sectionId) {
-  if (!data.realLifeExamples) return { fragment: null, sectionId };
-  
+// 2. この機能が世界をどう見ているか（detailed + mechanism）
+function renderInnerViewSection(data, tocItems, sectionId) {
+  const hasContent = data.overview?.detailed || data.overview?.mechanism;
+  if (!hasContent) return { fragment: null, sectionId };
+
   const id = `section-${sectionId++}`;
-  tocItems.push({ id, title: '実生活での現れ方' });
-  
-  const section = createSection(id, '実生活での現れ方', '🌍');
-  
-  const grid = createElement('div', 'examples-grid');
-  
-  const categoryNames = {
-    work: '💼 仕事',
-    relationships: '❤️ 人間関係',
-    learning: '📚 学習',
-    hobbies: '🎨 趣味・余暇'
-  };
-  
-  for (const [category, examples] of Object.entries(data.realLifeExamples)) {
-    if (Array.isArray(examples)) {
-      const card = createElement('div', 'example-card');
-      
-      const categoryDiv = createElement('div', 'example-category', categoryNames[category] || category);
-      card.appendChild(categoryDiv);
-      
-      const list = createElement('ul', 'example-list');
-      examples.forEach(ex => {
-        const li = document.createElement('li');
-        formatTextToElements(ex).forEach(el => {
-          while (el.firstChild) {
-            li.appendChild(el.firstChild);
-          }
-        });
-        list.appendChild(li);
-      });
-      card.appendChild(list);
-      
-      grid.appendChild(card);
-    }
+  tocItems.push({ id, title: 'この機能が世界をどう見ているか' });
+
+  const section = createSection(id, 'この機能が世界をどう見ているか', '👁️');
+  const prose = createElement('div', 'prose');
+
+  if (data.overview?.detailed) {
+    const h3 = createElement('h3', null, '内側の視点');
+    prose.appendChild(h3);
+    formatTextToElements(data.overview.detailed).forEach(el => prose.appendChild(el));
   }
-  
-  section.appendChild(grid);
+
+  if (data.overview?.mechanism) {
+    const h3 = createElement('h3', null, '働き方のメカニズム');
+    prose.appendChild(h3);
+    formatTextToElements(data.overview.mechanism).forEach(el => prose.appendChild(el));
+  }
+
+  section.appendChild(prose);
   return { fragment: section, sectionId };
 }
 
-function renderComparisons(data, tocItems, sectionId) {
-  if (!data.comparisons) return { fragment: null, sectionId };
-  
+// 3. 理論上の位置づけ（jungian + comparisons）
+function renderTheorySection(data, tocItems, sectionId) {
+  const j = data.jungian || {};
+  const c = data.comparisons || {};
+  const hasContent =
+    j.definition || j.orientation || j.purpose ||
+    c.similarButDifferent || c.oftenConfusedWith;
+  if (!hasContent) return { fragment: null, sectionId };
+
   const id = `section-${sectionId++}`;
-  tocItems.push({ id, title: '他の機能との比較' });
-  
-  const section = createSection(id, '他の機能との比較', '🔄');
-  
-  let html = '';
-  
-  if (data.comparisons.polarOpposite) {
-    const comp = data.comparisons.polarOpposite;
-    html += `<div class="comparison-card">
-      <div class="comparison-header">${e(comp.title || '')}</div>
-      <div class="comparison-vs">
-        <span class="comparison-function">${data.code}</span>
-        <span class="comparison-divider">vs</span>
-        <span class="comparison-function">${comp.function}</span>
-      </div>`;
-    
-    if (comp.keyDifferences && Array.isArray(comp.keyDifferences)) {
-      html += `<table class="comparison-table">
-        <thead>
-          <tr>
-            <th>観点</th>
-            <th>${data.code}</th>
-            <th>${comp.function}</th>
-          </tr>
-        </thead>
-        <tbody>`;
-      
-      comp.keyDifferences.forEach(diff => {
-        html += `<tr>
-          <td><strong>${e(diff.aspect)}</strong></td>
-          <td>${e(diff[data.code] || '')}</td>
-          <td>${e(diff[comp.function] || '')}</td>
-        </tr>`;
-      });
-      
-      html += `</tbody></table>`;
-    }
-    
-    html += `</div>`;
+  tocItems.push({ id, title: '理論上の位置づけ' });
+
+  const section = createSection(id, '理論上の位置づけと、似ている機能との違い', '📚');
+  const prose = createElement('div', 'prose');
+
+  if (j.definition || j.orientation || j.purpose) {
+    const h3 = createElement('h3', null, '理論上の位置づけ');
+    prose.appendChild(h3);
+    [j.definition, j.orientation, j.purpose]
+      .filter(Boolean)
+      .forEach(text => formatTextToElements(text).forEach(el => prose.appendChild(el)));
   }
-  
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = html;
-  while (tempDiv.firstChild) {
-    section.appendChild(tempDiv.firstChild);
+
+  if (c.similarButDifferent || c.oftenConfusedWith) {
+    const h3 = createElement('h3', null, '似ている機能との違い');
+    prose.appendChild(h3);
+    [c.similarButDifferent, c.oftenConfusedWith]
+      .filter(Boolean)
+      .forEach(text => formatTextToElements(text).forEach(el => prose.appendChild(el)));
   }
-  
+
+  section.appendChild(prose);
   return { fragment: section, sectionId };
 }
 
-function renderDevelopmentalStages(data, tocItems, sectionId) {
-  if (!data.developmentalStages) return { fragment: null, sectionId };
-  
+// 4. タイプの中での現れ方（stackDynamics）
+function renderStackSection(data, tocItems, sectionId) {
+  const s = data.stackDynamics || {};
+  const hasContent = s.dominant || s.auxiliary || s.tertiary || s.inferior;
+  if (!hasContent) return { fragment: null, sectionId };
+
   const id = `section-${sectionId++}`;
-  tocItems.push({ id, title: '人生の発達段階' });
-  
-  const section = createSection(id, '人生の発達段階', '🌱');
-  
-  const stages = [
-    { key: 'childhood', label: '幼少期', icon: '👶' },
-    { key: 'adolescence', label: '青年期', icon: '🧑' },
-    { key: 'adulthood', label: '成人期', icon: '👨' },
-    { key: 'maturity', label: '成熟期', icon: '👴' }
+  tocItems.push({ id, title: 'タイプの中での現れ方' });
+
+  const section = createSection(id, 'タイプの中での現れ方', '🧩');
+  const grid = createElement('div', 'types-grid');
+
+  const order = [
+    { key: 'dominant', label: 'もっとも前面にあるとき' },
+    { key: 'auxiliary', label: '第二の位置にあるとき' },
+    { key: 'tertiary', label: '第三の位置にあるとき' },
+    { key: 'inferior', label: 'もっとも奥にあるとき' }
   ];
-  
+
+  order.forEach(item => {
+    const text = s[item.key];
+    if (!text) return;
+
+    const card = createElement('div', 'type-card');
+    const title = createElement('div', 'type-card__title', item.label);
+    const body = createElement('div', 'type-card__body');
+
+    formatTextToElements(text).forEach(el => body.appendChild(el));
+    card.appendChild(title);
+    card.appendChild(body);
+    grid.appendChild(card);
+  });
+
+  section.appendChild(grid);
+  return { fragment: section, sectionId };
+}
+
+// 5. バランスとつまずき（development + misconceptions）
+function renderDevelopmentSection(data, tocItems, sectionId) {
+  const d = data.development || {};
+  const hasContent = d.balanced || d.overuse || d.underuse || data.misconceptions;
+  if (!hasContent) return { fragment: null, sectionId };
+
+  const id = `section-${sectionId++}`;
+  tocItems.push({ id, title: 'バランスとつまずき' });
+
+  const section = createSection(id, 'バランスとつまずきやすいポイント', '⚖️');
+  const prose = createElement('div', 'prose');
+
+  if (d.balanced) {
+    const h3 = createElement('h3', null, 'バランスよく働いているとき');
+    prose.appendChild(h3);
+    formatTextToElements(d.balanced).forEach(el => prose.appendChild(el));
+  }
+
+  if (d.overuse || d.underuse) {
+    const h3 = createElement('h3', null, '偏りやすい方向');
+    prose.appendChild(h3);
+
+    if (d.overuse) {
+      const p = document.createElement('p');
+      const strong = createElement('strong', null, '使いすぎるとき');
+      p.appendChild(strong);
+      p.appendChild(document.createElement('br'));
+      formatTextToElements(d.overuse).forEach(el => {
+        while (el.firstChild) p.appendChild(el.firstChild);
+      });
+      prose.appendChild(p);
+    }
+
+    if (d.underuse) {
+      const p = document.createElement('p');
+      const strong = createElement('strong', null, '避けすぎるとき');
+      p.appendChild(strong);
+      p.appendChild(document.createElement('br'));
+      formatTextToElements(d.underuse).forEach(el => {
+        while (el.firstChild) p.appendChild(el.firstChild);
+      });
+      prose.appendChild(p);
+    }
+  }
+
+  if (data.misconceptions) {
+    const h3 = createElement('h3', null, 'よくある誤解');
+    prose.appendChild(h3);
+    formatTextToElements(data.misconceptions).forEach(el => prose.appendChild(el));
+  }
+
+  section.appendChild(prose);
+  return { fragment: section, sectionId };
+}
+
+// 6. 影の側面（shadowDynamics）
+function renderShadowSection(data, tocItems, sectionId) {
+  const s = data.shadowDynamics || {};
+  const hasContent = s.opposing || s.criticalParent || s.trickster || s.demon;
+  if (!hasContent) return { fragment: null, sectionId };
+
+  const id = `section-${sectionId++}`;
+  tocItems.push({ id, title: '影の側面' });
+
+  const section = createSection(id, '影の側面として現れるとき', '🌒');
   const grid = createElement('div', 'stages-grid');
-  
-  stages.forEach(({ key, label, icon }) => {
-    const stage = data.developmentalStages[key];
-    if (!stage) return;
-    
+
+  const order = [
+    { key: 'opposing', label: '反発として現れるとき' },
+    { key: 'criticalParent', label: '厳しい基準として現れるとき' },
+    { key: 'trickster', label: '揺さぶりや混乱として現れるとき' },
+    { key: 'demon', label: '自己否定や無力感として現れるとき' }
+  ];
+
+  order.forEach(item => {
+    const text = s[item.key];
+    if (!text) return;
+
     const card = createElement('div', 'stage-card');
-    
-    const header = createElement('div', 'stage-header');
-    const title = createElement('div', 'stage-title', `${icon} ${label}`);
-    const age = createElement('div', 'stage-age', stage.age);
-    header.appendChild(title);
-    header.appendChild(age);
-    card.appendChild(header);
-    
-    if (stage.characteristics && Array.isArray(stage.characteristics)) {
-      const charBox = createInfoBox('✨ 特徴', stage.characteristics.join('\n\n'));
-      card.appendChild(charBox);
-    }
-    
-    if (stage.challenges && Array.isArray(stage.challenges)) {
-      const challBox = createInfoBox('⚠️ 課題', stage.challenges.join('\n\n'), true);
-      card.appendChild(challBox);
-    }
-    
-    if (stage.support) {
-      const supportBox = createInfoBox('💡 サポート', stage.support);
-      card.appendChild(supportBox);
-    } else if (stage.wisdom) {
-      const wisdomBox = createInfoBox('💎 知恵', stage.wisdom);
-      card.appendChild(wisdomBox);
-    }
-    
+    const title = createElement('div', 'stage-card__title', item.label);
+    const body = createElement('div', 'stage-card__body');
+
+    formatTextToElements(text).forEach(el => body.appendChild(el));
+    card.appendChild(title);
+    card.appendChild(body);
     grid.appendChild(card);
   });
-  
+
   section.appendChild(grid);
   return { fragment: section, sectionId };
 }
 
-function renderPracticalApplications(data, tocItems, sectionId) {
-  if (!data.practicalApplications) return { fragment: null, sectionId };
-  
+// 7. 認知科学的な補足（cognitiveScience）
+function renderCognitiveSection(data, tocItems, sectionId) {
+  const c = data.cognitiveScience || {};
+  const hasContent = c.notes || c.neural || c.processing;
+  if (!hasContent) return { fragment: null, sectionId };
+
   const id = `section-${sectionId++}`;
-  tocItems.push({ id, title: '実践的な活用法' });
-  
-  const section = createSection(id, '実践的な活用法', '🎯');
-  
-  const app = data.practicalApplications;
-  
-  if (app.career) {
-    const h3 = createElement('h3', null, '💼 キャリアでの活かし方');
-    section.appendChild(h3);
-    
-    if (app.career.ideal && Array.isArray(app.career.ideal)) {
-      const idealBox = createInfoBox('✅ 適職', app.career.ideal.join('\n'));
-      section.appendChild(idealBox);
-    }
-    
-    if (app.career.strategies && Array.isArray(app.career.strategies)) {
-      const stratBox = createInfoBox('💡 成功戦略', app.career.strategies.join('\n\n'));
-      section.appendChild(stratBox);
-    }
+  tocItems.push({ id, title: '認知科学的な補足' });
+
+  const section = createSection(id, '認知科学的な補足とモデルの限界', '🧠');
+  const prose = createElement('div', 'prose');
+
+  if (c.notes) {
+    const h3 = createElement('h3', null, 'モデルとしての注意点');
+    prose.appendChild(h3);
+    formatTextToElements(c.notes).forEach(el => prose.appendChild(el));
   }
-  
-  if (app.communication) {
-    const h3 = createElement('h3', null, '💬 コミュニケーション改善法');
-    section.appendChild(h3);
-    
-    if (app.communication.improvement && Array.isArray(app.communication.improvement)) {
-      const commBox = createInfoBox('📝 改善ポイント', app.communication.improvement.join('\n\n'));
-      section.appendChild(commBox);
-    }
-    
-    if (app.communication.example) {
-      const exBox = createInfoBox('📖 具体例', app.communication.example);
-      section.appendChild(exBox);
-    }
+
+  if (c.neural) {
+    const h3 = createElement('h3', null, '脳との関係についての仮説');
+    prose.appendChild(h3);
+    formatTextToElements(c.neural).forEach(el => prose.appendChild(el));
   }
-  
-  if (app.relationships) {
-    const h3 = createElement('h3', null, '❤️ 人間関係でのアドバイス');
-    section.appendChild(h3);
-    
-    if (app.relationships.advice) {
-      const relBox = createInfoBox('💡 アドバイス', app.relationships.advice);
-      section.appendChild(relBox);
-    }
+
+  if (c.processing) {
+    const h3 = createElement('h3', null, '情報処理の特徴');
+    prose.appendChild(h3);
+    formatTextToElements(c.processing).forEach(el => prose.appendChild(el));
   }
-  
-  if (app.problemSolving) {
-    const h3 = createElement('h3', null, '🧩 問題解決アプローチ');
-    section.appendChild(h3);
-    
-    if (app.problemSolving.process && Array.isArray(app.problemSolving.process)) {
-      const procBox = createInfoBox('📋 プロセス', app.problemSolving.process.join('\n'));
-      section.appendChild(procBox);
-    }
-    
-    if (app.problemSolving.tips && Array.isArray(app.problemSolving.tips)) {
-      const tipsBox = createInfoBox('💡 ヒント', app.problemSolving.tips.join('\n'));
-      section.appendChild(tipsBox);
-    }
-  }
-  
+
+  section.appendChild(prose);
   return { fragment: section, sectionId };
 }
 
-function renderMisconceptions(data, tocItems, sectionId) {
-  if (!data.misconceptions || !Array.isArray(data.misconceptions)) {
-    return { fragment: null, sectionId };
-  }
-  
-  const id = `section-${sectionId++}`;
-  tocItems.push({ id, title: 'よくある誤解' });
-  
-  const section = createSection(id, 'よくある誤解', '❓');
-  
-  const grid = createElement('div', 'misconceptions-grid');
-  
-  data.misconceptions.forEach((item, i) => {
-    const card = createElement('div', 'misconception-card');
-    
-    const mythDiv = createElement('div', 'misconception-myth');
-    const mythIcon = createElement('span', 'misconception-icon', '❌');
-    const mythText = createElement('span', null, item.myth);
-    mythDiv.appendChild(mythIcon);
-    mythDiv.appendChild(mythText);
-    card.appendChild(mythDiv);
-    
-    const truthDiv = createElement('div', 'misconception-truth');
-    const truthIcon = createElement('span', 'misconception-icon', '✅');
-    const truthText = createElement('div');
-    formatTextToElements(item.truth).forEach(el => truthText.appendChild(el));
-    truthDiv.appendChild(truthIcon);
-    truthDiv.appendChild(truthText);
-    card.appendChild(truthDiv);
-    
-    if (item.clarification) {
-      const clarDiv = createElement('div', 'misconception-clarification');
-      clarDiv.innerHTML = `💡 ${e(item.clarification)}`;
-      card.appendChild(clarDiv);
-    }
-    
-    grid.appendChild(card);
-  });
-  
-  section.appendChild(grid);
-  return { fragment: section, sectionId };
-}
+// 8. 付き合い方のヒント（guidance）
+function renderGuidanceSection(data, tocItems, sectionId) {
+  const g = data.guidance || {};
+  const hasContent = g.resonatesIf || g.notResonateIf;
+  if (!hasContent) return { fragment: null, sectionId };
 
-function renderFamousPeople(data, tocItems, sectionId) {
-  if (!data.famousPeople || !Array.isArray(data.famousPeople)) {
-    return { fragment: null, sectionId };
-  }
-  
   const id = `section-${sectionId++}`;
-  tocItems.push({ id, title: '有名人の例' });
-  
-  const section = createSection(id, '有名人の例', '🌟');
-  
-  const selected = data.famousPeople.slice(0, 6);
-  
-  const grid = createElement('div', 'famous-grid');
-  
-  selected.forEach(person => {
-    const card = createElement('div', 'famous-card');
-    
-    const header = createElement('div', 'famous-header');
-    const name = createElement('div', 'famous-name', person.name);
-    const type = createElement('div', 'famous-type', person.type);
-    header.appendChild(name);
-    header.appendChild(type);
-    card.appendChild(header);
-    
-    const reason = createElement('p', 'famous-reason', person.reason);
-    card.appendChild(reason);
-    
-    if (person.quote) {
-      const quote = createElement('div', 'famous-quote', `"${person.quote}"`);
-      card.appendChild(quote);
-    }
-    
-    grid.appendChild(card);
-  });
-  
-  section.appendChild(grid);
+  tocItems.push({ id, title: '付き合い方のヒント' });
+
+  const section = createSection(id, 'この機能とうまく付き合うためのヒント', '💡');
+  const prose = createElement('div', 'prose');
+
+  if (g.resonatesIf) {
+    const h3 = createElement('h3', null, 'しっくりくるとき');
+    prose.appendChild(h3);
+    formatTextToElements(g.resonatesIf).forEach(el => prose.appendChild(el));
+  }
+
+  if (g.notResonateIf) {
+    const h3 = createElement('h3', null, '扱いづらく感じるとき');
+    prose.appendChild(h3);
+    formatTextToElements(g.notResonateIf).forEach(el => prose.appendChild(el));
+  }
+
+  section.appendChild(prose);
   return { fragment: section, sectionId };
 }
 
 // ==========================================
-// メインロード関数
+// 目次・アニメーション
+// ==========================================
+
+function buildToc(tocItems) {
+  if (!tocItems.length) return null;
+
+  const nav = createElement('nav', 'toc-nav');
+  const list = createElement('ul', 'toc-list');
+
+  tocItems.forEach((item, idx) => {
+    const li = createElement('li', 'toc-item');
+    const a = createElement('a', 'toc-link');
+    a.href = `#${item.id}`;
+
+    const number = createElement(
+      'span',
+      'toc-number',
+      (idx + 1).toString().padStart(2, '0')
+    );
+    const title = createElement('span', 'toc-title', item.title);
+
+    a.appendChild(number);
+    a.appendChild(title);
+    li.appendChild(a);
+    list.appendChild(li);
+  });
+
+  nav.appendChild(list);
+  return nav;
+}
+
+function observeSections(root) {
+  if (!('IntersectionObserver' in window)) {
+    root.querySelectorAll('.section').forEach(sec =>
+      sec.classList.add('section--visible')
+    );
+    return;
+  }
+
+  const observer = new IntersectionObserver(
+    entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('section--visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.15 }
+  );
+
+  root.querySelectorAll('.section').forEach(sec => observer.observe(sec));
+}
+
+// ==========================================
+// メインロード
 // ==========================================
 
 async function loadData() {
+  const main = document.getElementById('main-content');
+  const container =
+    main && main.querySelector('.container') ? main.querySelector('.container') : null;
+  const tocRoot = document.getElementById('toc-content');
+  const contentRoot = document.getElementById('function-content');
+
+  if (!container || !tocRoot || !contentRoot) {
+    console.error('必要なDOM要素が見つかりません');
+    return;
+  }
+
   try {
-    console.log('Loading:', code);
-    
     const res = await fetch(`data/${code}.json`);
-    console.log('Response status:', res.status);
-    
-    if (!res.ok) throw new Error(`${code}.json が見つかりません`);
-    
+    if (!res.ok) throw new Error(`${code}.json が見つかりませんでした`);
+
     const data = await res.json();
-    console.log('Data loaded:', data);
 
-    document.getElementById('page-title').textContent = 
-      `${data.name}(${data.code})完全ガイド — Persona Finder`;
-    
-    if (data.seo?.ja) {
-      document.getElementById('page-description').setAttribute('content', data.seo.ja.description);
-    }
+    // タイトル・description
+    const titleText =
+      data.meta?.seoTitle ||
+      `${data.name || ''}（${(data.function || data.code || code).toUpperCase()}）認知機能ガイド — Persona Finder`;
+    const descText =
+      data.meta?.seoDescription ||
+      '認知機能の深層分析';
 
-    document.getElementById('hero-code').textContent = data.code || '';
-    document.getElementById('hero-name').textContent = data.name || data.nameEn || '';
-    document.getElementById('hero-tagline').textContent = data.tagline || '';
-    
-    const tagsContainer = document.getElementById('hero-tags');
-    if (data.tags && Array.isArray(data.tags)) {
-      const fragment = document.createDocumentFragment();
-      data.tags.forEach(tag => {
-        const span = createElement('span', 'tag', tag);
-        fragment.appendChild(span);
-      });
-      tagsContainer.innerHTML = '';
-      tagsContainer.appendChild(fragment);
-    }
+    const titleEl = document.getElementById('page-title');
+    const descEl = document.getElementById('page-description');
+    if (titleEl) titleEl.textContent = titleText;
+    document.title = titleText;
+    if (descEl) descEl.setAttribute('content', descText);
+
+    // ヒーロー更新
+    updateHero(data);
+
+    // 中身クリア
+    tocRoot.innerHTML = '';
+    contentRoot.innerHTML = '';
 
     const tocItems = [];
-    let sectionId = 0;
-    let quiz = null;
+    let sectionId = 1;
 
-    const mainFragment = document.createDocumentFragment();
+    const renderers = [
+      renderIntroSection,
+      renderInnerViewSection,
+      renderTheorySection,
+      renderStackSection,
+      renderDevelopmentSection,
+      renderShadowSection,
+      renderCognitiveSection,
+      renderGuidanceSection
+    ];
 
-    const tocSection = createSection('toc-section', '目次', '📖');
-    const tocContent = createElement('div');
-    tocContent.id = 'toc-content';
-    tocSection.appendChild(tocContent);
-    mainFragment.appendChild(tocSection);
+    const frag = document.createDocumentFragment();
 
-    let result;
-    
-    result = renderOverview(data, tocItems, sectionId);
-    if (result.fragment) mainFragment.appendChild(result.fragment);
-    sectionId = result.sectionId;
-    
-    result = renderCognitiveScience(data, tocItems, sectionId);
-    if (result.fragment) mainFragment.appendChild(result.fragment);
-    sectionId = result.sectionId;
-    
-    result = renderCharacteristics(data, tocItems, sectionId);
-    if (result.fragment) mainFragment.appendChild(result.fragment);
-    sectionId = result.sectionId;
-    
-    result = renderQuickCheck(data, tocItems, sectionId);
-    if (result.fragment) mainFragment.appendChild(result.fragment);
-    sectionId = result.sectionId;
-    quiz = result.quiz;
-
-    result = renderStrengthsWeaknesses(data, tocItems, sectionId);
-    if (result.fragment) mainFragment.appendChild(result.fragment);
-    sectionId = result.sectionId;
-    
-    result = renderRealLifeExamples(data, tocItems, sectionId);
-    if (result.fragment) mainFragment.appendChild(result.fragment);
-    sectionId = result.sectionId;
-    
-    result = renderComparisons(data, tocItems, sectionId);
-    if (result.fragment) mainFragment.appendChild(result.fragment);
-    sectionId = result.sectionId;
-    
-    // 新規追加セクション
-    result = renderDevelopmentalStages(data, tocItems, sectionId);
-    if (result.fragment) mainFragment.appendChild(result.fragment);
-    sectionId = result.sectionId;
-    
-    result = renderPracticalApplications(data, tocItems, sectionId);
-    if (result.fragment) mainFragment.appendChild(result.fragment);
-    sectionId = result.sectionId;
-    
-    result = renderMisconceptions(data, tocItems, sectionId);
-    if (result.fragment) mainFragment.appendChild(result.fragment);
-    sectionId = result.sectionId;
-    
-    result = renderFamousPeople(data, tocItems, sectionId);
-    if (result.fragment) mainFragment.appendChild(result.fragment);
-    sectionId = result.sectionId;
-    
-    // DOM更新
-    const mainContainer = document.querySelector('.main-content .container');
-    if (mainContainer) {
-      mainContainer.innerHTML = '';
-      mainContainer.appendChild(mainFragment);
-    }
-
-    // 目次生成
-    const tocNav = createElement('nav', 'toc-nav');
-    const tocList = createElement('ul', 'toc-list');
-    
-    tocItems.forEach((item, i) => {
-      const li = createElement('li', 'toc-item');
-      const a = document.createElement('a');
-      a.href = `#${item.id}`;
-      a.className = 'toc-link';
-      
-      const number = createElement('span', 'toc-number', (i + 1).toString().padStart(2, '0'));
-      const title = createElement('span', 'toc-title', item.title);
-      
-      a.appendChild(number);
-      a.appendChild(title);
-      li.appendChild(a);
-      tocList.appendChild(li);
+    renderers.forEach(fn => {
+      const { fragment, sectionId: nextId } = fn(data, tocItems, sectionId);
+      sectionId = nextId;
+      if (fragment) frag.appendChild(fragment);
     });
-    
-    tocNav.appendChild(tocList);
-    
-    const tocContentEl = document.getElementById('toc-content');
-    if (tocContentEl) {
-      tocContentEl.appendChild(tocNav);
+
+    // 目次（ヒーローの直下に来る）
+    const tocNav = buildToc(tocItems);
+    if (tocNav) {
+      tocRoot.appendChild(tocNav);
     }
 
-    // 簡易テストのイベントリスナー設定
-    if (quiz) {
-      setupQuizListeners(quiz);
-    }
+    contentRoot.appendChild(frag);
 
-    // セクション可視化の監視開始
-    observeSections();
-
-    console.log('✅ Page rendered successfully');
-
+    // アニメーション
+    requestAnimationFrame(() => {
+      observeSections(contentRoot);
+    });
   } catch (err) {
-    console.error('❌ Error:', err);
-    const mainContainer = document.querySelector('.main-content .container');
-    if (mainContainer) {
-      mainContainer.innerHTML = 
-        `<div class="warning-box">
-          <div class="warning-title">⚠️ エラー</div>
-          <div class="warning-content">
-            <p>${e(err.message)}</p>
-          </div>
-        </div>`;
-    }
+    console.error(err);
+    contentRoot.innerHTML = '';
+    const box = createInfoBox('エラー', err.message || 'データの読み込みに失敗しました。', true);
+    contentRoot.appendChild(box);
   }
-}
-
-function setupQuizListeners(quiz) {
-  const checkboxes = document.querySelectorAll('.quiz-checkbox');
-  const result = document.getElementById('quiz-result');
-  const scoreEl = document.getElementById('quiz-score');
-  const interpEl = document.getElementById('quiz-interpretation');
-  
-  if (!checkboxes.length || !result || !scoreEl || !interpEl) return;
-  
-  checkboxes.forEach(cb => {
-    cb.addEventListener('change', () => {
-      const checked = Array.from(checkboxes).filter(c => c.checked).length;
-      const total = checkboxes.length;
-      scoreEl.textContent = `${checked}/${total}`;
-      
-      let scoringData = null;
-      
-      if (checked >= 4 && quiz.scoring.high) {
-        scoringData = quiz.scoring.high;
-      } else if (checked >= 2 && quiz.scoring.medium) {
-        scoringData = quiz.scoring.medium;
-      } else if (quiz.scoring.low) {
-        scoringData = quiz.scoring.low;
-      }
-      
-      if (scoringData) {
-        const fragment = document.createDocumentFragment();
-        
-        const h3 = createElement('h3', null, scoringData.result);
-        fragment.appendChild(h3);
-        
-        const p1 = createElement('p', null, scoringData.message);
-        fragment.appendChild(p1);
-        
-        const p2 = createElement('p');
-        const strong = createElement('strong', null, '該当タイプ:');
-        p2.appendChild(strong);
-        p2.appendChild(document.createTextNode(` ${scoringData.types.join(', ')}`));
-        fragment.appendChild(p2);
-        
-        const p3 = createElement('p', null, scoringData.nextAction);
-        fragment.appendChild(p3);
-        
-        interpEl.innerHTML = '';
-        interpEl.appendChild(fragment);
-      }
-      
-      result.classList.add('show');
-    });
-  });
 }
 
 if (document.readyState === 'loading') {
